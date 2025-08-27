@@ -2,6 +2,7 @@
   "name": "ddd-order-tracking-api",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
