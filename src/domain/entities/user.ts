@@ -8,6 +8,8 @@ interface UserProps {
   role: 'admin' | 'deliveryman'
   name: string
   email?: string
+  phone?: string
+  status: 'active' | 'inactive'
   createdAt: Date
   updatedAt?: Date
 }
@@ -31,6 +33,14 @@ export class User extends Entity<UserProps> {
 
   get email() {
     return this.props.email
+  }
+
+  get phone() {
+    return this.props.phone
+  }
+
+  get status() {
+    return this.props.status
   }
 
   get createdAt() {
@@ -60,14 +70,25 @@ export class User extends Entity<UserProps> {
     this.touch()
   }
 
+  set phone(phone: string | undefined) {
+    this.props.phone = phone
+    this.touch()
+  }
+
+  set status(status: 'active' | 'inactive') {
+    this.props.status = status
+    this.touch()
+  }
+
   static create(
-    props: Optional<UserProps, 'createdAt' | 'updatedAt'>,
+    props: Optional<UserProps, 'createdAt' | 'updatedAt' | 'email' | 'phone' | 'status'>,
     id?: UniqueEntityID
   ) {
     const user = new User(
       {
         ...props,
         createdAt: props.createdAt ?? new Date(),
+        status: props.status ?? 'active',
       },
       id
     )

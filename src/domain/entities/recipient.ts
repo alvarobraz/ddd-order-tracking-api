@@ -4,10 +4,14 @@ import { Optional } from "@/core/types/optional"
 
 interface RecipientProps {
   name: string
-  address: string
-  contactInfo: string
-  latitude: number
-  longitude: number
+  street: string
+  number: string
+  neighborhood: string
+  city: string
+  state: string
+  zipCode: string
+  phone: string
+  email: string
   createdAt: Date
   updatedAt?: Date
 }
@@ -17,20 +21,36 @@ export class Recipient extends Entity<RecipientProps> {
     return this.props.name
   }
 
-  get address() {
-    return this.props.address
+  get street() {
+    return this.props.street
   }
 
-  get contactInfo() {
-    return this.props.contactInfo
+  get number() {
+    return this.props.number
   }
 
-  get latitude() {
-    return this.props.latitude
+  get neighborhood() {
+    return this.props.neighborhood
   }
 
-  get longitude() {
-    return this.props.longitude
+  get city() {
+    return this.props.city
+  }
+
+  get state() {
+    return this.props.state
+  }
+
+  get zipCode() {
+    return this.props.zipCode
+  }
+
+  get phone() {
+    return this.props.phone
+  }
+
+  get email() {
+    return this.props.email
   }
 
   get createdAt() {
@@ -50,23 +70,43 @@ export class Recipient extends Entity<RecipientProps> {
     this.touch()
   }
 
-  set address(address: string) {
-    this.props.address = address
+  set street(street: string) {
+    this.props.street = street
     this.touch()
   }
 
-  set contactInfo(contactInfo: string) {
-    this.props.contactInfo = contactInfo
+  set number(number: string) {
+    this.props.number = number
     this.touch()
   }
 
-  set latitude(latitude: number) {
-    this.props.latitude = latitude
+  set neighborhood(neighborhood: string) {
+    this.props.neighborhood = neighborhood
     this.touch()
   }
 
-  set longitude(longitude: number) {
-    this.props.longitude = longitude
+  set city(city: string) {
+    this.props.city = city
+    this.touch()
+  }
+
+  set state(state: string) {
+    this.props.state = state
+    this.touch()
+  }
+
+  set zipCode(zipCode: string) {
+    this.props.zipCode = zipCode
+    this.touch()
+  }
+
+  set phone(phone: string) {
+    this.props.phone = phone
+    this.touch()
+  }
+
+  set email(email: string) {
+    this.props.email = email
     this.touch()
   }
 
