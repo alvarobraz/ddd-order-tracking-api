@@ -3,6 +3,7 @@ import { UpdateDeliverymanUseCase } from './update-deliveryman'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
 import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeUser } from 'test/factories/make-users'
 
 describe('Update Deliveryman Use Case', () => {
   let usersRepository: UsersRepository
@@ -21,27 +22,10 @@ describe('Update Deliveryman Use Case', () => {
   })
 
   it('should update a deliveryman if admin and deliveryman are valid and active', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const deliveryman = User.create(
-      {
-        cpf: '98765432100',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '1234567890',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -82,14 +66,8 @@ describe('Update Deliveryman Use Case', () => {
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -105,17 +83,10 @@ describe('Update Deliveryman Use Case', () => {
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'inactive',
-      },
+    const admin = makeUser(
+      { status: 'inactive' },
       new UniqueEntityID('admin-1'),
     )
-
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
     await expect(
@@ -128,16 +99,7 @@ describe('Update Deliveryman Use Case', () => {
   })
 
   it('should throw an error if deliveryman does not exist', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
     vi.spyOn(usersRepository, 'findById').mockImplementation(async (id) => {
       if (id === 'admin-1') return admin
@@ -154,27 +116,9 @@ describe('Update Deliveryman Use Case', () => {
   })
 
   it('should throw an error if deliveryman is not a deliveryman', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const notDeliveryman = User.create(
-      {
-        cpf: '98765432100',
-        password: 'password123',
-        role: 'admin',
-        name: 'Jane Doe',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-2'),
-    )
+    const notDeliveryman = makeUser({}, new UniqueEntityID('admin-2'))
 
     vi.spyOn(usersRepository, 'findById').mockImplementation(async (id) => {
       if (id === 'admin-1') return admin
@@ -192,25 +136,10 @@ describe('Update Deliveryman Use Case', () => {
   })
 
   it('should throw an error if deliveryman is inactive', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const deliveryman = User.create(
-      {
-        cpf: '98765432100',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'inactive',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman', status: 'inactive' },
       new UniqueEntityID('deliveryman-1'),
     )
 

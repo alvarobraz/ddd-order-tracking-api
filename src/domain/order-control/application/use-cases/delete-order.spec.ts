@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { DeleteOrderUseCase } from './delete-order'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
-import { Order } from '@/domain/order-control/enterprise/entities/order'
-import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeUser } from 'test/factories/make-users'
+import { makeOrder } from 'test/factories/make-order'
 
 describe('Delete Order UseCase', () => {
   let ordersRepository: OrdersRepository
@@ -33,28 +33,10 @@ describe('Delete Order UseCase', () => {
   })
 
   it('should delete an order if admin is valid and active', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const order = Order.create(
-      {
-        recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Carolina Castelli',
-        number: '123',
-        neighborhood: 'Novo Mundo',
-        city: 'Curitiba',
-        state: 'Paraná',
-        zipCode: '12345',
-        status: 'pending',
-      },
+    const order = makeOrder(
+      { recipientId: new UniqueEntityID('recipient-1') },
       new UniqueEntityID('order-1'),
     )
 
@@ -84,14 +66,8 @@ describe('Delete Order UseCase', () => {
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -106,14 +82,8 @@ describe('Delete Order UseCase', () => {
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'inactive',
-      },
+    const admin = makeUser(
+      { status: 'inactive' },
       new UniqueEntityID('admin-1'),
     )
 
@@ -128,16 +98,7 @@ describe('Delete Order UseCase', () => {
   })
 
   it('should throw an error if order does not exist', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)

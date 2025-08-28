@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ListOrdersUseCase } from './list-orders'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
-import { Order } from '@/domain/order-control/enterprise/entities/order'
-import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeUser } from 'test/factories/make-users'
+import { makeOrder } from 'test/factories/make-order'
 
 describe('List Orders Use Case', () => {
   let ordersRepository: OrdersRepository
@@ -33,41 +33,18 @@ describe('List Orders Use Case', () => {
   })
 
   it('should list orders if admin is valid and active', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const order1 = Order.create(
+    const order1 = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Carolina Castelli',
-        number: '123',
-        neighborhood: 'Novo Mundo',
-        city: 'Curitiba',
-        state: 'Paraná',
-        zipCode: '12345',
-        status: 'pending',
       },
       new UniqueEntityID('order-1'),
     )
 
-    const order2 = Order.create(
+    const order2 = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-2'),
-        street: 'Oscar kolbe',
-        number: '456',
-        neighborhood: 'Novo Mundo',
-        city: 'Curitiba',
-        state: 'Paraná',
-        zipCode: '67890',
-        status: 'picked_up',
       },
       new UniqueEntityID('order-2'),
     )
@@ -91,14 +68,8 @@ describe('List Orders Use Case', () => {
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -110,14 +81,8 @@ describe('List Orders Use Case', () => {
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'inactive',
-      },
+    const admin = makeUser(
+      { status: 'inactive' },
       new UniqueEntityID('admin-1'),
     )
 

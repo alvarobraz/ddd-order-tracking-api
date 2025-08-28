@@ -3,8 +3,9 @@ import { MarkOrderAsPendingUseCase } from './mark-order-as-pending'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
 import { Order } from '@/domain/order-control/enterprise/entities/order'
-import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeUser } from 'test/factories/make-users'
+import { makeOrder } from 'test/factories/make-order'
 
 describe('MarkOrderAsPendingUseCase', () => {
   let ordersRepository: OrdersRepository
@@ -33,27 +34,11 @@ describe('MarkOrderAsPendingUseCase', () => {
   })
 
   it('should mark an order as pending if admin is valid and active', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const order = Order.create(
+    const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Rua das Flores',
-        number: '123',
-        neighborhood: 'Centro',
-        city: 'São Paulo',
-        state: 'SP',
-        zipCode: '01001-000',
-        status: 'picked_up',
       },
       new UniqueEntityID('order-1'),
     )
@@ -69,10 +54,10 @@ describe('MarkOrderAsPendingUseCase', () => {
 
     expect(result).toBeInstanceOf(Order)
     expect(result.status).toBe('pending')
-    expect(result.street).toBe('Rua das Flores')
-    expect(result.city).toBe('São Paulo')
-    expect(result.state).toBe('SP')
-    expect(result.zipCode).toBe('01001-000')
+    expect(result.street).toBe(order.street)
+    expect(result.city).toBe(order.city)
+    expect(result.state).toBe(order.state)
+    expect(result.zipCode).toBe(order.zipCode)
     expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
     expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
     expect(ordersRepository.save).toHaveBeenCalledWith(order)
@@ -90,14 +75,8 @@ describe('MarkOrderAsPendingUseCase', () => {
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'João Silva',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -112,14 +91,8 @@ describe('MarkOrderAsPendingUseCase', () => {
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'inactive',
-      },
+    const admin = makeUser(
+      { status: 'inactive' },
       new UniqueEntityID('admin-1'),
     )
 
@@ -134,16 +107,7 @@ describe('MarkOrderAsPendingUseCase', () => {
   })
 
   it('should throw an error if order does not exist', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)

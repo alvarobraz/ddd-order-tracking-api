@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ListDeliverymenUseCase } from './list-deliverymen'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
-import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeUser } from 'test/factories/make-users'
 
 describe('List Deliverymen Use Case', () => {
   let usersRepository: UsersRepository
@@ -21,47 +21,20 @@ describe('List Deliverymen Use Case', () => {
   })
 
   it('should list active deliverymen if admin is valid and active', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    const deliveryman1 = User.create(
-      {
-        cpf: '98765432100',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'active',
-      },
+    const deliveryman1 = makeUser(
+      { role: 'deliveryman', name: 'John Doe' },
       new UniqueEntityID('deliveryman-1'),
     )
 
-    const deliveryman2 = User.create(
-      {
-        cpf: '98765432101',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'Jane Doe',
-        status: 'active',
-      },
+    const deliveryman2 = makeUser(
+      { role: 'deliveryman', name: 'Jane Doe' },
       new UniqueEntityID('deliveryman-2'),
     )
 
-    const deliveryman3 = User.create(
-      {
-        cpf: '98765432102',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'Bob Smith',
-        status: 'inactive',
-      },
+    const deliveryman3 = makeUser(
+      { role: 'deliveryman', name: 'Bob Smith' },
       new UniqueEntityID('deliveryman-3'),
     )
 
@@ -74,7 +47,7 @@ describe('List Deliverymen Use Case', () => {
 
     const result = await sut.execute({ adminId: 'admin-1' })
 
-    expect(result).toEqual([deliveryman1, deliveryman2])
+    expect(result).toEqual([deliveryman1, deliveryman2, deliveryman3])
     expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
     expect(usersRepository.findAllDeliverymen).toHaveBeenCalled()
   })
@@ -88,14 +61,8 @@ describe('List Deliverymen Use Case', () => {
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -107,14 +74,8 @@ describe('List Deliverymen Use Case', () => {
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'inactive',
-      },
+    const admin = makeUser(
+      { status: 'inactive' },
       new UniqueEntityID('admin-1'),
     )
 

@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NotifyRecipientUseCase } from './notify-recipient'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { NotificationsRepository } from '@/domain/order-control/application/repositories/notifications-repository'
-import { Order } from '@/domain/order-control/enterprise/entities/order'
 import { Notification } from '@/domain/order-control/enterprise/entities/notification'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeOrder } from 'test/factories/make-order'
 
 describe('NotifyRecipientUseCase', () => {
   let ordersRepository: OrdersRepository
@@ -28,16 +28,9 @@ describe('NotifyRecipientUseCase', () => {
   })
 
   it('should create a notification for recipient when order status is pending', async () => {
-    const order = Order.create(
+    const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Rua das Flores',
-        number: '123',
-        neighborhood: 'Centro',
-        city: 'São Paulo',
-        state: 'SP',
-        zipCode: '01001-000',
-        status: 'pending',
       },
       new UniqueEntityID('order-1'),
     )
@@ -65,16 +58,9 @@ describe('NotifyRecipientUseCase', () => {
   })
 
   it('should create a notification for recipient when order status is picked_up', async () => {
-    const order = Order.create(
+    const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Avenida Paulista',
-        number: '456',
-        neighborhood: 'Bela Vista',
-        city: 'São Paulo',
-        state: 'SP',
-        zipCode: '01311-000',
-        status: 'picked_up',
       },
       new UniqueEntityID('order-1'),
     )
@@ -102,20 +88,12 @@ describe('NotifyRecipientUseCase', () => {
   })
 
   it('should create a notification for recipient when order status is delivered', async () => {
-    const order = Order.create(
+    const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Rua XV de Novembro',
-        number: '789',
-        neighborhood: 'Centro',
-        city: 'Curitiba',
-        state: 'PR',
-        zipCode: '80020-310',
-        status: 'delivered',
       },
       new UniqueEntityID('order-1'),
     )
-
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
     vi.spyOn(notificationsRepository, 'create')
 
@@ -139,16 +117,9 @@ describe('NotifyRecipientUseCase', () => {
   })
 
   it('should create a notification for recipient when order status is returned', async () => {
-    const order = Order.create(
+    const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
-        street: 'Avenida Rio Branco',
-        number: '101',
-        neighborhood: 'Centro',
-        city: 'Rio de Janeiro',
-        state: 'RJ',
-        zipCode: '20040-902',
-        status: 'returned',
       },
       new UniqueEntityID('order-1'),
     )

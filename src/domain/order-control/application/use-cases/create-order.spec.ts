@@ -1,138 +1,132 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { CreateOrderUseCase } from './create-order'
-import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
-import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
-import { Order } from '@/domain/order-control/enterprise/entities/order'
-import { User } from '@/domain/order-control/enterprise/entities/user'
+import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository'
+import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { makeOrder } from 'test/factories/make-order'
+import { makeUser } from 'test/factories/make-users'
+import { Order } from '@/domain/order-control/enterprise/entities/order'
+
+let inMemoryOrdersRepository: InMemoryOrdersRepository
+let inMemoryUsersRepository: InMemoryUsersRepository
+let sut: CreateOrderUseCase
 
 describe('Create Order Use Case', () => {
-  let ordersRepository: OrdersRepository
-  let usersRepository: UsersRepository
-  let sut: CreateOrderUseCase
-
   beforeEach(() => {
-    ordersRepository = {
-      create: vi.fn(),
-      findById: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-      findNearby: vi.fn(),
-      findByDeliverymanId: vi.fn(),
-    }
-    usersRepository = {
-      findByCpf: vi.fn(),
-      findById: vi.fn(),
-      create: vi.fn(),
-      save: vi.fn(),
-      patch: vi.fn(),
-      findAllDeliverymen: vi.fn(),
-    }
-    sut = new CreateOrderUseCase(ordersRepository, usersRepository)
+    inMemoryOrdersRepository = new InMemoryOrdersRepository()
+    inMemoryUsersRepository = new InMemoryUsersRepository()
+    sut = new CreateOrderUseCase(
+      inMemoryOrdersRepository,
+      inMemoryUsersRepository,
+    )
   })
 
   it('should create an order if admin is valid and active', async () => {
-    const admin = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
-        status: 'active',
-      },
-      new UniqueEntityID('admin-1'),
-    )
+    const admin = makeUser({}, new UniqueEntityID('admin-1'))
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(ordersRepository, 'create').mockResolvedValue()
+    await inMemoryUsersRepository.create(admin)
+
+    const orderProps = makeOrder({
+      recipientId: new UniqueEntityID('recipient-1'),
+    })
 
     const result = await sut.execute({
       adminId: 'admin-1',
       recipientId: 'recipient-1',
-      street: 'Carolina Castelli',
-      number: '123',
-      neighborhood: 'Novo Mundo',
-      city: 'Curitiba',
-      state: 'Paraná',
-      zipCode: '12345',
+      street: orderProps.street,
+      number: orderProps.number,
+      neighborhood: orderProps.neighborhood,
+      city: orderProps.city,
+      state: orderProps.state,
+      zipCode: orderProps.zipCode,
     })
 
     expect(result).toBeInstanceOf(Order)
     expect(result.status).toBe('pending')
-    expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
-    expect(ordersRepository.create).toHaveBeenCalledWith(expect.any(Order))
+    expect(result.street).toBe(orderProps.street)
+    expect(result.number).toBe(orderProps.number)
+    expect(result.neighborhood).toBe(orderProps.neighborhood)
+    expect(result.city).toBe(orderProps.city)
+    expect(result.state).toBe(orderProps.state)
+    expect(result.zipCode).toBe(orderProps.zipCode)
+    expect(result.recipientId).toBeDefined()
+    expect(result.recipientId?.toString()).toBe('recipient-1')
+    expect(inMemoryOrdersRepository.items).toHaveLength(1)
+    expect(inMemoryOrdersRepository.items[0].id).toEqual(result.id)
+    expect(inMemoryOrdersRepository.items[0].recipientId?.toString()).toBe(
+      'recipient-1',
+    )
   })
 
   it('should throw an error if admin does not exist', async () => {
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
+    const orderProps = makeOrder({
+      recipientId: new UniqueEntityID('recipient-1'),
+    })
 
     await expect(
       sut.execute({
         adminId: 'admin-1',
         recipientId: 'recipient-1',
-        street: 'Carolina Castelli',
-        number: '123',
-        neighborhood: 'Novo Mundo',
-        city: 'Curitiba',
-        state: 'Paraná',
-        zipCode: '12345',
+        street: orderProps.street,
+        number: orderProps.number,
+        neighborhood: orderProps.neighborhood,
+        city: orderProps.city,
+        state: orderProps.state,
+        zipCode: orderProps.zipCode,
       }),
     ).rejects.toThrow('Only active admins can create orders')
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create(
-      {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'deliveryman',
-        name: 'John Doe',
-        status: 'active',
-      },
+    const deliveryman = makeUser(
+      { role: 'deliveryman' },
       new UniqueEntityID('deliveryman-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
+    await inMemoryUsersRepository.create(deliveryman)
+
+    const orderProps = makeOrder({
+      recipientId: new UniqueEntityID('recipient-1'),
+    })
 
     await expect(
       sut.execute({
         adminId: 'deliveryman-1',
         recipientId: 'recipient-1',
-        street: 'Carolina Castelli',
-        number: '123',
-        neighborhood: 'Novo Mundo',
-        city: 'Curitiba',
-        state: 'Paraná',
-        zipCode: '12345',
+        street: orderProps.street,
+        number: orderProps.number,
+        neighborhood: orderProps.neighborhood,
+        city: orderProps.city,
+        state: orderProps.state,
+        zipCode: orderProps.zipCode,
       }),
     ).rejects.toThrow('Only active admins can create orders')
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create(
+    const admin = makeUser(
       {
-        cpf: '12345678901',
-        password: 'password123',
-        role: 'admin',
-        name: 'Admin',
         status: 'inactive',
       },
       new UniqueEntityID('admin-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
+    await inMemoryUsersRepository.create(admin)
+
+    const orderProps = makeOrder({
+      recipientId: new UniqueEntityID('recipient-1'),
+    })
 
     await expect(
       sut.execute({
         adminId: 'admin-1',
         recipientId: 'recipient-1',
-        street: 'Carolina Castelli',
-        number: '123',
-        neighborhood: 'Novo Mundo',
-        city: 'Curitiba',
-        state: 'Paraná',
-        zipCode: '12345',
+        street: orderProps.street,
+        number: orderProps.number,
+        neighborhood: orderProps.neighborhood,
+        city: orderProps.city,
+        state: orderProps.state,
+        zipCode: orderProps.zipCode,
       }),
     ).rejects.toThrow('Only active admins can create orders')
   })
