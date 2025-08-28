@@ -1,6 +1,6 @@
-import { Entity } from "@/core/entities/entity"
-import { UniqueEntityID } from "@/core/entities/unique-entity-id"
-import { Optional } from "@/core/types/optional"
+import { Entity } from '@/core/entities/entity'
+import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { Optional } from '@/core/types/optional'
 
 interface OrderProps {
   recipientId?: UniqueEntityID
@@ -121,15 +121,22 @@ export class Order extends Entity<OrderProps> {
   }
 
   static create(
-    props: Optional<OrderProps, 'createdAt' | 'updatedAt' | 'recipientId' | 'deliverymanId' | 'deliveryPhoto'>,
-    id?: UniqueEntityID
+    props: Optional<
+      OrderProps,
+      | 'createdAt'
+      | 'updatedAt'
+      | 'recipientId'
+      | 'deliverymanId'
+      | 'deliveryPhoto'
+    >,
+    id?: UniqueEntityID,
   ) {
     const order = new Order(
       {
         ...props,
         createdAt: props.createdAt ?? new Date(),
       },
-      id
+      id,
     )
 
     return order

@@ -1,5 +1,5 @@
-import { User } from "@/domain/entities/user"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { User } from '@/domain/entities/user'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface CreateDeliverymanUseCaseRequest {
   adminId: string
@@ -11,11 +11,16 @@ interface CreateDeliverymanUseCaseRequest {
 }
 
 export class CreateDeliverymanUseCase {
-  constructor(
-    private usersRepository: UsersRepository
-  ) {}
+  constructor(private usersRepository: UsersRepository) {}
 
-  async execute({ adminId, name, cpf, password, email, phone }: CreateDeliverymanUseCaseRequest) {
+  async execute({
+    adminId,
+    name,
+    cpf,
+    password,
+    email,
+    phone,
+  }: CreateDeliverymanUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can create deliverymen')
@@ -28,7 +33,7 @@ export class CreateDeliverymanUseCase {
       role: 'deliveryman',
       email,
       phone,
-      status: 'active'
+      status: 'active',
     })
 
     await this.usersRepository.create(user)

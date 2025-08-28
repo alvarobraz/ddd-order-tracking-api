@@ -1,6 +1,6 @@
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
-import { UniqueEntityID } from "@/core/entities/unique-entity-id"
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
+import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 
 interface UpdateOrderUseCaseRequest {
   adminId: string
@@ -17,10 +17,20 @@ interface UpdateOrderUseCaseRequest {
 export class UpdateOrderUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId, orderId, recipientId, street, number, neighborhood, city, state, zipCode }: UpdateOrderUseCaseRequest) {
+  async execute({
+    adminId,
+    orderId,
+    recipientId,
+    street,
+    number,
+    neighborhood,
+    city,
+    state,
+    zipCode,
+  }: UpdateOrderUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can update orders')

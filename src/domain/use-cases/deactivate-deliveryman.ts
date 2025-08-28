@@ -1,4 +1,4 @@
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface DeactivateDeliverymanUseCaseRequest {
   adminId: string
@@ -6,18 +6,23 @@ interface DeactivateDeliverymanUseCaseRequest {
 }
 
 export class DeactivateDeliverymanUseCase {
-  constructor(
-    private usersRepository: UsersRepository
-  ) {}
+  constructor(private usersRepository: UsersRepository) {}
 
-  async execute({ adminId, deliverymanId }: DeactivateDeliverymanUseCaseRequest) {
+  async execute({
+    adminId,
+    deliverymanId,
+  }: DeactivateDeliverymanUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can deactivate deliverymen')
     }
 
     const deliveryman = await this.usersRepository.findById(deliverymanId)
-    if (!deliveryman || deliveryman.role !== 'deliveryman' || deliveryman.status !== 'active') {
+    if (
+      !deliveryman ||
+      deliveryman.role !== 'deliveryman' ||
+      deliveryman.status !== 'active'
+    ) {
       throw new Error('Active deliveryman not found')
     }
 

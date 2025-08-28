@@ -33,35 +33,44 @@ describe('ListNearbyOrdersUseCase', () => {
   })
 
   it('should list nearby orders if deliveryman is valid and active', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
-    const order1 = Order.create({
-      recipientId: new UniqueEntityID('recipient-1'),
-      street: 'Rua das Flores',
-      number: '123',
-      neighborhood: 'Centro',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01001-000',
-      status: 'pending',
-    }, new UniqueEntityID('order-1'))
+    const order1 = Order.create(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01001-000',
+        status: 'pending',
+      },
+      new UniqueEntityID('order-1'),
+    )
 
-    const order2 = Order.create({
-      recipientId: new UniqueEntityID('recipient-2'),
-      street: 'Avenida Paulista',
-      number: '456',
-      neighborhood: 'Bela Vista',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01311-000',
-      status: 'pending',
-    }, new UniqueEntityID('order-2'))
+    const order2 = Order.create(
+      {
+        recipientId: new UniqueEntityID('recipient-2'),
+        street: 'Avenida Paulista',
+        number: '456',
+        neighborhood: 'Bela Vista',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01311-000',
+        status: 'pending',
+      },
+      new UniqueEntityID('order-2'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
     vi.spyOn(ordersRepository, 'findNearby').mockResolvedValue([order1, order2])
@@ -91,18 +100,21 @@ describe('ListNearbyOrdersUseCase', () => {
       sut.execute({
         deliverymanId: 'deliveryman-1',
         neighborhood: 'Centro',
-      })
+      }),
     ).rejects.toThrow('Only active deliverymen can list nearby orders')
   })
 
   it('should throw an error if user is not a deliveryman', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
@@ -110,18 +122,21 @@ describe('ListNearbyOrdersUseCase', () => {
       sut.execute({
         deliverymanId: 'admin-1',
         neighborhood: 'Centro',
-      })
+      }),
     ).rejects.toThrow('Only active deliverymen can list nearby orders')
   })
 
   it('should throw an error if deliveryman is inactive', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'inactive',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'inactive',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
 
@@ -129,18 +144,21 @@ describe('ListNearbyOrdersUseCase', () => {
       sut.execute({
         deliverymanId: 'deliveryman-1',
         neighborhood: 'Centro',
-      })
+      }),
     ).rejects.toThrow('Only active deliverymen can list nearby orders')
   })
 
   it('should return an empty array if no nearby orders are found', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
     vi.spyOn(ordersRepository, 'findNearby').mockResolvedValue([])

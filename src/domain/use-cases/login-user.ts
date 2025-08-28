@@ -1,4 +1,4 @@
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface LoginUserUseCaseRequest {
   cpf: string
@@ -11,11 +11,12 @@ interface LoginUserUseCaseResponse {
 }
 
 export class LoginUserUseCase {
-  constructor(
-    private usersRepository: UsersRepository
-  ) {}
+  constructor(private usersRepository: UsersRepository) {}
 
-  async execute({ cpf, password }: LoginUserUseCaseRequest): Promise<LoginUserUseCaseResponse> {
+  async execute({
+    cpf,
+    password,
+  }: LoginUserUseCaseRequest): Promise<LoginUserUseCaseResponse> {
     const user = await this.usersRepository.findByCpf(cpf)
 
     if (!user || user.password !== password) {
@@ -28,7 +29,7 @@ export class LoginUserUseCase {
 
     return {
       userId: user.id.toString(),
-      role: user.role
+      role: user.role,
     }
   }
 }

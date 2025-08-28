@@ -1,7 +1,7 @@
-import { Notification } from "@/domain/entities/notification"
-import { NotificationsRepository } from "@/domain/repositories/notifications-repository"
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UniqueEntityID } from "@/core/entities/unique-entity-id"
+import { Notification } from '@/domain/entities/notification'
+import { NotificationsRepository } from '@/domain/repositories/notifications-repository'
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 
 interface NotifyRecipientUseCaseRequest {
   orderId: string
@@ -11,7 +11,7 @@ interface NotifyRecipientUseCaseRequest {
 export class NotifyRecipientUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private notificationsRepository: NotificationsRepository
+    private notificationsRepository: NotificationsRepository,
   ) {}
 
   async execute({ orderId, status }: NotifyRecipientUseCaseRequest) {
@@ -23,7 +23,7 @@ export class NotifyRecipientUseCase {
     const notification = Notification.create({
       orderId: new UniqueEntityID(orderId),
       message: `Order status updated to ${status}`,
-      type: 'email'
+      type: 'email',
     })
 
     await this.notificationsRepository.create(notification)

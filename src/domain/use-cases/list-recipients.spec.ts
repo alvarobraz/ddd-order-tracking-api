@@ -31,40 +31,52 @@ describe('List Recipients Use Case', () => {
   })
 
   it('should list recipients if admin is valid and active', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    const recipient1 = Recipient.create({
-      name: 'João Silva',
-      street: 'Rua das Flores',
-      number: '123',
-      neighborhood: 'Centro',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01001-000',
-      phone: '(11) 98765-4321',
-      email: 'joao@example.com',
-    }, new UniqueEntityID('recipient-1'))
+    const recipient1 = Recipient.create(
+      {
+        name: 'João Silva',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01001-000',
+        phone: '(11) 98765-4321',
+        email: 'joao@example.com',
+      },
+      new UniqueEntityID('recipient-1'),
+    )
 
-    const recipient2 = Recipient.create({
-      name: 'Maria Oliveira',
-      street: 'Avenida Brasil',
-      number: '456',
-      neighborhood: 'Jardins',
-      city: 'Rio de Janeiro',
-      state: 'RJ',
-      zipCode: '20040-902',
-      phone: '(21) 91234-5678',
-      email: 'maria@example.com',
-    }, new UniqueEntityID('recipient-2'))
+    const recipient2 = Recipient.create(
+      {
+        name: 'Maria Oliveira',
+        street: 'Avenida Brasil',
+        number: '456',
+        neighborhood: 'Jardins',
+        city: 'Rio de Janeiro',
+        state: 'RJ',
+        zipCode: '20040-902',
+        phone: '(21) 91234-5678',
+        email: 'maria@example.com',
+      },
+      new UniqueEntityID('recipient-2'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(recipientsRepository, 'findAll').mockResolvedValue([recipient1, recipient2])
+    vi.spyOn(recipientsRepository, 'findAll').mockResolvedValue([
+      recipient1,
+      recipient2,
+    ])
 
     const result = await sut.execute({ adminId: 'admin-1' })
 
@@ -84,40 +96,46 @@ describe('List Recipients Use Case', () => {
   it('should throw an error if admin does not exist', async () => {
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
 
-    await expect(
-      sut.execute({ adminId: 'admin-1' })
-    ).rejects.toThrow('Only active admins can list recipients')
+    await expect(sut.execute({ adminId: 'admin-1' })).rejects.toThrow(
+      'Only active admins can list recipients',
+    )
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
 
-    await expect(
-      sut.execute({ adminId: 'deliveryman-1' })
-    ).rejects.toThrow('Only active admins can list recipients')
+    await expect(sut.execute({ adminId: 'deliveryman-1' })).rejects.toThrow(
+      'Only active admins can list recipients',
+    )
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'inactive',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
-    await expect(
-      sut.execute({ adminId: 'admin-1' })
-    ).rejects.toThrow('Only active admins can list recipients')
+    await expect(sut.execute({ adminId: 'admin-1' })).rejects.toThrow(
+      'Only active admins can list recipients',
+    )
   })
 })

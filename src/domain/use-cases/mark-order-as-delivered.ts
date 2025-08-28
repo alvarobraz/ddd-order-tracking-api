@@ -1,5 +1,5 @@
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface MarkOrderAsDeliveredUseCaseRequest {
   deliverymanId: string
@@ -10,12 +10,20 @@ interface MarkOrderAsDeliveredUseCaseRequest {
 export class MarkOrderAsDeliveredUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ deliverymanId, orderId, deliveryPhoto }: MarkOrderAsDeliveredUseCaseRequest) {
+  async execute({
+    deliverymanId,
+    orderId,
+    deliveryPhoto,
+  }: MarkOrderAsDeliveredUseCaseRequest) {
     const deliveryman = await this.usersRepository.findById(deliverymanId)
-    if (!deliveryman || deliveryman.role !== 'deliveryman' || deliveryman.status !== 'active') {
+    if (
+      !deliveryman ||
+      deliveryman.role !== 'deliveryman' ||
+      deliveryman.status !== 'active'
+    ) {
       throw new Error('Only active deliverymen can mark orders as delivered')
     }
 
@@ -25,7 +33,9 @@ export class MarkOrderAsDeliveredUseCase {
     }
 
     if (order.deliverymanId?.toString() !== deliverymanId) {
-      throw new Error('Only the assigned deliveryman can mark the order as delivered')
+      throw new Error(
+        'Only the assigned deliveryman can mark the order as delivered',
+      )
     }
 
     if (order.status !== 'picked_up') {

@@ -1,6 +1,6 @@
-import { Order } from "@/domain/entities/order"
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { Order } from '@/domain/entities/order'
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface ListNearbyOrdersUseCaseRequest {
   deliverymanId: string
@@ -10,12 +10,19 @@ interface ListNearbyOrdersUseCaseRequest {
 export class ListNearbyOrdersUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ deliverymanId, neighborhood }: ListNearbyOrdersUseCaseRequest): Promise<Order[]> {
+  async execute({
+    deliverymanId,
+    neighborhood,
+  }: ListNearbyOrdersUseCaseRequest): Promise<Order[]> {
     const deliveryman = await this.usersRepository.findById(deliverymanId)
-    if (!deliveryman || deliveryman.role !== 'deliveryman' || deliveryman.status !== 'active') {
+    if (
+      !deliveryman ||
+      deliveryman.role !== 'deliveryman' ||
+      deliveryman.status !== 'active'
+    ) {
       throw new Error('Only active deliverymen can list nearby orders')
     }
 

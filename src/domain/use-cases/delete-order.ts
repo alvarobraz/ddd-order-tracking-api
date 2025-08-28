@@ -1,5 +1,5 @@
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface DeleteOrderUseCaseRequest {
   adminId: string
@@ -9,7 +9,7 @@ interface DeleteOrderUseCaseRequest {
 export class DeleteOrderUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
   async execute({ adminId, orderId }: DeleteOrderUseCaseRequest) {

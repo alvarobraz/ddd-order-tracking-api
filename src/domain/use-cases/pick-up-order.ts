@@ -1,6 +1,6 @@
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
-import { UniqueEntityID } from "@/core/entities/unique-entity-id"
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
+import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 
 interface PickUpOrderUseCaseRequest {
   deliverymanId: string
@@ -10,12 +10,16 @@ interface PickUpOrderUseCaseRequest {
 export class PickUpOrderUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
   async execute({ deliverymanId, orderId }: PickUpOrderUseCaseRequest) {
     const deliveryman = await this.usersRepository.findById(deliverymanId)
-    if (!deliveryman || deliveryman.role !== 'deliveryman' || deliveryman.status !== 'active') {
+    if (
+      !deliveryman ||
+      deliveryman.role !== 'deliveryman' ||
+      deliveryman.status !== 'active'
+    ) {
       throw new Error('Only active deliverymen can pick up orders')
     }
 

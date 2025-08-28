@@ -33,24 +33,30 @@ describe('MarkOrderAsPendingUseCase', () => {
   })
 
   it('should mark an order as pending if admin is valid and active', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    const order = Order.create({
-      recipientId: new UniqueEntityID('recipient-1'),
-      street: 'Rua das Flores',
-      number: '123',
-      neighborhood: 'Centro',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01001-000',
-      status: 'picked_up',
-    }, new UniqueEntityID('order-1'))
+    const order = Order.create(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01001-000',
+        status: 'picked_up',
+      },
+      new UniqueEntityID('order-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
@@ -79,18 +85,21 @@ describe('MarkOrderAsPendingUseCase', () => {
       sut.execute({
         adminId: 'admin-1',
         orderId: 'order-1',
-      })
+      }),
     ).rejects.toThrow('Only active admins can mark orders as pending')
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
 
@@ -98,18 +107,21 @@ describe('MarkOrderAsPendingUseCase', () => {
       sut.execute({
         adminId: 'deliveryman-1',
         orderId: 'order-1',
-      })
+      }),
     ).rejects.toThrow('Only active admins can mark orders as pending')
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'inactive',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
@@ -117,18 +129,21 @@ describe('MarkOrderAsPendingUseCase', () => {
       sut.execute({
         adminId: 'admin-1',
         orderId: 'order-1',
-      })
+      }),
     ).rejects.toThrow('Only active admins can mark orders as pending')
   })
 
   it('should throw an error if order does not exist', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)
@@ -137,7 +152,7 @@ describe('MarkOrderAsPendingUseCase', () => {
       sut.execute({
         adminId: 'admin-1',
         orderId: 'order-1',
-      })
+      }),
     ).rejects.toThrow('Order not found')
   })
 })

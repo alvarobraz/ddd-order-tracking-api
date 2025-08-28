@@ -21,13 +21,16 @@ describe('Login User Use Case', () => {
   })
 
   it('should login a user with valid credentials', async () => {
-    const user = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'John Doe',
-      status: 'active',
-    }, new UniqueEntityID('user-1'))
+    const user = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'John Doe',
+        status: 'active',
+      },
+      new UniqueEntityID('user-1'),
+    )
 
     vi.spyOn(usersRepository, 'findByCpf').mockResolvedValue(user)
 
@@ -50,18 +53,21 @@ describe('Login User Use Case', () => {
       sut.execute({
         cpf: '12345678901',
         password: 'wrong-password',
-      })
+      }),
     ).rejects.toThrow('Invalid credentials')
   })
 
   it('should throw an error if user is inactive', async () => {
-    const user = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'John Doe',
-      status: 'inactive',
-    }, new UniqueEntityID('user-1'))
+    const user = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'John Doe',
+        status: 'inactive',
+      },
+      new UniqueEntityID('user-1'),
+    )
 
     vi.spyOn(usersRepository, 'findByCpf').mockResolvedValue(user)
 
@@ -69,7 +75,7 @@ describe('Login User Use Case', () => {
       sut.execute({
         cpf: '12345678901',
         password: 'password123',
-      })
+      }),
     ).rejects.toThrow('User account is inactive')
   })
 })

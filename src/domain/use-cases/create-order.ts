@@ -1,7 +1,7 @@
-import { Order } from "@/domain/entities/order"
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
-import { UniqueEntityID } from "@/core/entities/unique-entity-id"
+import { Order } from '@/domain/entities/order'
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
+import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 
 interface CreateOrderUseCaseRequest {
   adminId: string
@@ -17,10 +17,19 @@ interface CreateOrderUseCaseRequest {
 export class CreateOrderUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId, recipientId, street, number, neighborhood, city, state, zipCode }: CreateOrderUseCaseRequest) {
+  async execute({
+    adminId,
+    recipientId,
+    street,
+    number,
+    neighborhood,
+    city,
+    state,
+    zipCode,
+  }: CreateOrderUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can create orders')
@@ -34,7 +43,7 @@ export class CreateOrderUseCase {
       city,
       state,
       zipCode,
-      status: 'pending'
+      status: 'pending',
     })
 
     await this.ordersRepository.create(order)

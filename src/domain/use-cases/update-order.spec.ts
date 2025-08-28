@@ -33,24 +33,30 @@ describe('Update Order Use Case', () => {
   })
 
   it('should update an order if admin is valid and active', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    const order = Order.create({
-      recipientId: new UniqueEntityID('recipient-1'),
-      street: 'Carolina Castelli',
-      number: '123',
-      neighborhood: 'Novo Mundo',
-      city: 'Curitiba',
-      state: 'Paraná',
-      zipCode: '12345',
-      status: 'pending',
-    }, new UniqueEntityID('order-1'))
+    const order = Order.create(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Carolina Castelli',
+        number: '123',
+        neighborhood: 'Novo Mundo',
+        city: 'Curitiba',
+        state: 'Paraná',
+        zipCode: '12345',
+        status: 'pending',
+      },
+      new UniqueEntityID('order-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
@@ -79,18 +85,21 @@ describe('Update Order Use Case', () => {
         adminId: 'admin-1',
         orderId: 'order-1',
         street: 'Oskar Kolbe',
-      })
+      }),
     ).rejects.toThrow('Only active admins can update orders')
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'John Doe',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'John Doe',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
 
@@ -99,18 +108,21 @@ describe('Update Order Use Case', () => {
         adminId: 'deliveryman-1',
         orderId: 'order-1',
         street: 'New St',
-      })
+      }),
     ).rejects.toThrow('Only active admins can update orders')
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'inactive',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
@@ -119,18 +131,21 @@ describe('Update Order Use Case', () => {
         adminId: 'admin-1',
         orderId: 'order-1',
         street: 'Oscar Kolbe',
-      })
+      }),
     ).rejects.toThrow('Only active admins can update orders')
   })
 
   it('should throw an error if order does not exist', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)
@@ -140,7 +155,7 @@ describe('Update Order Use Case', () => {
         adminId: 'admin-1',
         orderId: 'order-1',
         street: 'Ciryllo Merlin',
-      })
+      }),
     ).rejects.toThrow('Order not found')
   })
 })

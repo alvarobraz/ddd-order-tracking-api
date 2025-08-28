@@ -1,5 +1,5 @@
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface MarkOrderAsReturnedUseCaseRequest {
   userId: string
@@ -9,7 +9,7 @@ interface MarkOrderAsReturnedUseCaseRequest {
 export class MarkOrderAsReturnedUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
   async execute({ userId, orderId }: MarkOrderAsReturnedUseCaseRequest) {
@@ -23,8 +23,13 @@ export class MarkOrderAsReturnedUseCase {
       throw new Error('Order not found')
     }
 
-    if (user.role === 'deliveryman' && order.deliverymanId?.toString() !== userId) {
-      throw new Error('Only the assigned deliveryman or an admin can mark the order as returned')
+    if (
+      user.role === 'deliveryman' &&
+      order.deliverymanId?.toString() !== userId
+    ) {
+      throw new Error(
+        'Only the assigned deliveryman or an admin can mark the order as returned',
+      )
     }
 
     order.status = 'returned'

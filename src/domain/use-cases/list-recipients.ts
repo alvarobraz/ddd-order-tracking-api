@@ -1,6 +1,6 @@
-import { Recipient } from "@/domain/entities/recipient"
-import { RecipientsRepository } from "@/domain/repositories/recipients-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { Recipient } from '@/domain/entities/recipient'
+import { RecipientsRepository } from '@/domain/repositories/recipients-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface ListRecipientsUseCaseRequest {
   adminId: string
@@ -9,10 +9,12 @@ interface ListRecipientsUseCaseRequest {
 export class ListRecipientsUseCase {
   constructor(
     private recipientsRepository: RecipientsRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId }: ListRecipientsUseCaseRequest): Promise<Recipient[]> {
+  async execute({
+    adminId,
+  }: ListRecipientsUseCaseRequest): Promise<Recipient[]> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can list recipients')

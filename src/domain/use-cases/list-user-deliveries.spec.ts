@@ -33,40 +33,52 @@ describe('ListUserDeliveriesUseCase', () => {
   })
 
   it('should list deliveries for a valid and active deliveryman', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
-    const order1 = Order.create({
-      recipientId: new UniqueEntityID('recipient-1'),
-      deliverymanId: new UniqueEntityID('deliveryman-1'),
-      street: 'Rua das Flores',
-      number: '123',
-      neighborhood: 'Centro',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01001-000',
-      status: 'picked_up',
-    }, new UniqueEntityID('order-1'))
+    const order1 = Order.create(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        deliverymanId: new UniqueEntityID('deliveryman-1'),
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01001-000',
+        status: 'picked_up',
+      },
+      new UniqueEntityID('order-1'),
+    )
 
-    const order2 = Order.create({
-      recipientId: new UniqueEntityID('recipient-2'),
-      deliverymanId: new UniqueEntityID('deliveryman-1'),
-      street: 'Avenida Paulista',
-      number: '456',
-      neighborhood: 'Bela Vista',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01311-000',
-      status: 'delivered',
-    }, new UniqueEntityID('order-2'))
+    const order2 = Order.create(
+      {
+        recipientId: new UniqueEntityID('recipient-2'),
+        deliverymanId: new UniqueEntityID('deliveryman-1'),
+        street: 'Avenida Paulista',
+        number: '456',
+        neighborhood: 'Bela Vista',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01311-000',
+        status: 'delivered',
+      },
+      new UniqueEntityID('order-2'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
-    vi.spyOn(ordersRepository, 'findByDeliverymanId').mockResolvedValue([order1, order2])
+    vi.spyOn(ordersRepository, 'findByDeliverymanId').mockResolvedValue([
+      order1,
+      order2,
+    ])
 
     const result = await sut.execute({
       deliverymanId: 'deliveryman-1',
@@ -82,7 +94,9 @@ describe('ListUserDeliveriesUseCase', () => {
     expect(result[1].state).toBe('SP')
     expect(result[1].zipCode).toBe('01311-000')
     expect(usersRepository.findById).toHaveBeenCalledWith('deliveryman-1')
-    expect(ordersRepository.findByDeliverymanId).toHaveBeenCalledWith('deliveryman-1')
+    expect(ordersRepository.findByDeliverymanId).toHaveBeenCalledWith(
+      'deliveryman-1',
+    )
   })
 
   it('should throw an error if deliveryman does not exist', async () => {
@@ -91,54 +105,63 @@ describe('ListUserDeliveriesUseCase', () => {
     await expect(
       sut.execute({
         deliverymanId: 'deliveryman-1',
-      })
+      }),
     ).rejects.toThrow('Only active deliverymen can list their deliveries')
   })
 
   it('should throw an error if user is not a deliveryman', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
     await expect(
       sut.execute({
         deliverymanId: 'admin-1',
-      })
+      }),
     ).rejects.toThrow('Only active deliverymen can list their deliveries')
   })
 
   it('should throw an error if deliveryman is inactive', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'inactive',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'inactive',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
 
     await expect(
       sut.execute({
         deliverymanId: 'deliveryman-1',
-      })
+      }),
     ).rejects.toThrow('Only active deliverymen can list their deliveries')
   })
 
   it('should return an empty array if no deliveries are found', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'João Silva',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'João Silva',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
     vi.spyOn(ordersRepository, 'findByDeliverymanId').mockResolvedValue([])
@@ -149,6 +172,8 @@ describe('ListUserDeliveriesUseCase', () => {
 
     expect(result).toEqual([])
     expect(usersRepository.findById).toHaveBeenCalledWith('deliveryman-1')
-    expect(ordersRepository.findByDeliverymanId).toHaveBeenCalledWith('deliveryman-1')
+    expect(ordersRepository.findByDeliverymanId).toHaveBeenCalledWith(
+      'deliveryman-1',
+    )
   })
 })

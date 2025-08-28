@@ -1,6 +1,6 @@
-import { Order } from "@/domain/entities/order"
-import { OrdersRepository } from "@/domain/repositories/orders-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { Order } from '@/domain/entities/order'
+import { OrdersRepository } from '@/domain/repositories/orders-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface ListOrdersUseCaseRequest {
   adminId: string
@@ -9,7 +9,7 @@ interface ListOrdersUseCaseRequest {
 export class ListOrdersUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
   async execute({ adminId }: ListOrdersUseCaseRequest): Promise<Order[]> {

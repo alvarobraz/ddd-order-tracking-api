@@ -1,4 +1,4 @@
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface ChangeUserPasswordUseCaseRequest {
   adminId: string
@@ -7,11 +7,13 @@ interface ChangeUserPasswordUseCaseRequest {
 }
 
 export class ChangeUserPasswordUseCase {
-  constructor(
-    private usersRepository: UsersRepository
-  ) {}
+  constructor(private usersRepository: UsersRepository) {}
 
-  async execute({ adminId, userId, newPassword }: ChangeUserPasswordUseCaseRequest) {
+  async execute({
+    adminId,
+    userId,
+    newPassword,
+  }: ChangeUserPasswordUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can change user passwords')

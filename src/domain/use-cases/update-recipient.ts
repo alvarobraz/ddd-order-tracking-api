@@ -1,5 +1,5 @@
-import { RecipientsRepository } from "@/domain/repositories/recipients-repository"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { RecipientsRepository } from '@/domain/repositories/recipients-repository'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface UpdateRecipientUseCaseRequest {
   adminId: string
@@ -20,10 +20,22 @@ interface UpdateRecipientUseCaseRequest {
 export class UpdateRecipientUseCase {
   constructor(
     private recipientsRepository: RecipientsRepository,
-    private usersRepository: UsersRepository
+    private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId, recipientId, name, street, number, neighborhood, city, state, zipCode, phone, email }: UpdateRecipientUseCaseRequest) {
+  async execute({
+    adminId,
+    recipientId,
+    name,
+    street,
+    number,
+    neighborhood,
+    city,
+    state,
+    zipCode,
+    phone,
+    email,
+  }: UpdateRecipientUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
       throw new Error('Only active admins can update recipients')

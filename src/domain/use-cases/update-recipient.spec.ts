@@ -31,25 +31,31 @@ describe('Update Recipient Use Case', () => {
   })
 
   it('should update a recipient if admin is valid and active', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    const recipient = Recipient.create({
-      name: 'John Doe',
-      street: 'Carolina Castelli',
-      number: '123',
-      neighborhood: 'Novo Mundo',
-      city: 'Curitba',
-      state: 'Paraná',
-      zipCode: '12345',
-      phone: '1234567890',
-      email: 'john@example.com'
-    }, new UniqueEntityID('recipient-1'))
+    const recipient = Recipient.create(
+      {
+        name: 'John Doe',
+        street: 'Carolina Castelli',
+        number: '123',
+        neighborhood: 'Novo Mundo',
+        city: 'Curitba',
+        state: 'Paraná',
+        zipCode: '12345',
+        phone: '1234567890',
+        email: 'john@example.com',
+      },
+      new UniqueEntityID('recipient-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(recipientsRepository, 'findById').mockResolvedValue(recipient)
@@ -78,18 +84,21 @@ describe('Update Recipient Use Case', () => {
         adminId: 'admin-1',
         recipientId: 'recipient-1',
         name: 'Jane Doe',
-      })
+      }),
     ).rejects.toThrow('Only active admins can update recipients')
   })
 
   it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'deliveryman',
-      name: 'John Doe',
-      status: 'active',
-    }, new UniqueEntityID('deliveryman-1'))
+    const deliveryman = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'deliveryman',
+        name: 'John Doe',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
 
@@ -98,18 +107,21 @@ describe('Update Recipient Use Case', () => {
         adminId: 'deliveryman-1',
         recipientId: 'recipient-1',
         name: 'Jane Doe',
-      })
+      }),
     ).rejects.toThrow('Only active admins can update recipients')
   })
 
   it('should throw an error if admin is inactive', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'inactive',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
@@ -118,18 +130,21 @@ describe('Update Recipient Use Case', () => {
         adminId: 'admin-1',
         recipientId: 'recipient-1',
         name: 'Jane Doe',
-      })
+      }),
     ).rejects.toThrow('Only active admins can update recipients')
   })
 
   it('should throw an error if recipient does not exist', async () => {
-    const admin = User.create({
-      cpf: '12345678901',
-      password: 'password123',
-      role: 'admin',
-      name: 'Admin',
-      status: 'active',
-    }, new UniqueEntityID('admin-1'))
+    const admin = User.create(
+      {
+        cpf: '12345678901',
+        password: 'password123',
+        role: 'admin',
+        name: 'Admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
     vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
     vi.spyOn(recipientsRepository, 'findById').mockResolvedValue(null)
@@ -139,7 +154,7 @@ describe('Update Recipient Use Case', () => {
         adminId: 'admin-1',
         recipientId: 'recipient-1',
         name: 'Jane Doe',
-      })
+      }),
     ).rejects.toThrow('Recipient not found')
   })
 })

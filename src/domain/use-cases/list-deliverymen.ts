@@ -1,14 +1,12 @@
-import { User } from "@/domain/entities/user"
-import { UsersRepository } from "@/domain/repositories/users-repository"
+import { User } from '@/domain/entities/user'
+import { UsersRepository } from '@/domain/repositories/users-repository'
 
 interface ListDeliverymenUseCaseRequest {
   adminId: string
 }
 
 export class ListDeliverymenUseCase {
-  constructor(
-    private usersRepository: UsersRepository
-  ) {}
+  constructor(private usersRepository: UsersRepository) {}
 
   async execute({ adminId }: ListDeliverymenUseCaseRequest): Promise<User[]> {
     const admin = await this.usersRepository.findById(adminId)
@@ -17,6 +15,6 @@ export class ListDeliverymenUseCase {
     }
 
     const deliverymen = await this.usersRepository.findAllDeliverymen()
-    return deliverymen.filter(user => user.status === 'active')
+    return deliverymen.filter((user) => user.status === 'active')
   }
 }
