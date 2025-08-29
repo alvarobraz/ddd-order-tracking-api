@@ -1,10 +1,20 @@
+import { Either, left, right } from '@/core/either'
 import { RecipientsRepository } from '@/domain/order-control/application/repositories/recipients-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { OnlyActiveAdminsCanDeleteRecipientsError } from './errors/only-active-admins-can-delete-recipients-error'
+import { RecipientNotFoundError } from './errors/recipient-not-found-error'
 
 interface DeleteRecipientUseCaseRequest {
   adminId: string
   recipientId: string
 }
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+type DeleteRecipientUseCaseUseCaseResponse = Either<
+  OnlyActiveAdminsCanDeleteRecipientsError | RecipientNotFoundError,
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  {}
+>
 
 export class DeleteRecipientUseCase {
   constructor(
@@ -12,17 +22,22 @@ export class DeleteRecipientUseCase {
     private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId, recipientId }: DeleteRecipientUseCaseRequest) {
+  async execute({
+    adminId,
+    recipientId,
+  }: DeleteRecipientUseCaseRequest): Promise<DeleteRecipientUseCaseUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can delete recipients')
+      return left(new OnlyActiveAdminsCanDeleteRecipientsError())
     }
 
     const recipient = await this.recipientsRepository.findById(recipientId)
     if (!recipient) {
-      throw new Error('Recipient not found')
+      return left(new RecipientNotFoundError())
     }
 
     await this.recipientsRepository.delete(recipientId)
+
+    return right({})
   }
 }

@@ -1,100 +1,129 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { CreateDeliverymanUseCase } from './create-deliveryman'
-import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
 import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeUser } from 'test/factories/make-users'
+import { left } from '@/core/either'
+import { OnlyActiveAdminsCanCreateDeliverymenError } from './errors/only-active-admins-can-create-deliverymen-error'
 
-describe('Create Delivery man Use Case', () => {
-  let usersRepository: UsersRepository
-  let sut: CreateDeliverymanUseCase
+let inMemoryUsersRepository: InMemoryUsersRepository
+let sut: CreateDeliverymanUseCase
 
+describe('Create Deliveryman Use Case', () => {
   beforeEach(() => {
-    usersRepository = {
-      findByCpf: vi.fn(),
-      findById: vi.fn(),
-      create: vi.fn(),
-      save: vi.fn(),
-      patch: vi.fn(),
-      findAllDeliverymen: vi.fn(),
-    }
-    sut = new CreateDeliverymanUseCase(usersRepository)
+    inMemoryUsersRepository = new InMemoryUsersRepository()
+    sut = new CreateDeliverymanUseCase(inMemoryUsersRepository)
   })
 
   it('should create a deliveryman if admin is valid and active', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
-
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(usersRepository, 'create').mockResolvedValue()
-
-    const result = await sut.execute({
-      adminId: 'admin-1',
-      name: 'John Doe',
-      cpf: '98765432100',
-      password: 'password123',
-      email: 'john@example.com',
-      phone: '1234567890',
-    })
-
-    expect(result).toBeInstanceOf(User)
-    expect(result.role).toBe('deliveryman')
-    expect(result.status).toBe('active')
-    expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
-    expect(usersRepository.create).toHaveBeenCalledWith(expect.any(User))
-  })
-
-  it('should throw an error if admin does not exist', async () => {
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
-
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        name: 'John Doe',
-        cpf: '98765432100',
-        password: 'password123',
-        email: 'john@example.com',
-        phone: '1234567890',
-      }),
-    ).rejects.toThrow('Only active admins can create deliverymen')
-  })
-
-  it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = makeUser(
-      { role: 'deliveryman' },
-      new UniqueEntityID('deliveryman-1'),
-    )
-
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
-
-    await expect(
-      sut.execute({
-        adminId: 'deliveryman-1',
-        name: 'John Doe',
-        cpf: '98765432100',
-        password: 'password123',
-        email: 'john@example.com',
-        phone: '1234567890',
-      }),
-    ).rejects.toThrow('Only active admins can create deliverymen')
-  })
-
-  it('should throw an error if admin is inactive', async () => {
     const admin = makeUser(
-      { status: 'inactive' },
+      {
+        role: 'admin',
+        status: 'active',
+      },
       new UniqueEntityID('admin-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
+    await inMemoryUsersRepository.create(admin)
 
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        name: 'John Doe',
-        cpf: '98765432100',
-        password: 'password123',
-        email: 'john@example.com',
-        phone: '1234567890',
-      }),
-    ).rejects.toThrow('Only active admins can create deliverymen')
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      name: 'João Silva',
+      cpf: '987.654.321-00',
+      password: 'password123',
+      email: 'joao.silva@example.com',
+      phone: '(11) 91234-5678',
+    })
+
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toBeInstanceOf(User)
+    expect(result.value).toMatchObject({
+      role: 'deliveryman',
+      status: 'active',
+      name: 'João Silva',
+      cpf: '987.654.321-00',
+      email: 'joao.silva@example.com',
+      phone: '(11) 91234-5678',
+    })
+    expect(inMemoryUsersRepository.items).toHaveLength(2) // Admin + Deliveryman
+    expect(inMemoryUsersRepository.items[1].role).toBe('deliveryman')
+  })
+
+  it('should return an error if admin does not exist', async () => {
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      name: 'João Silva',
+      cpf: '987.654.321-00',
+      password: 'password123',
+      email: 'joao.silva@example.com',
+      phone: '(11) 91234-5678',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanCreateDeliverymenError,
+    )
+    expect(result).toEqual(
+      left(new OnlyActiveAdminsCanCreateDeliverymenError()),
+    )
+  })
+
+  it('should return an error if admin is not an admin', async () => {
+    const deliveryman = makeUser(
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
+
+    await inMemoryUsersRepository.create(deliveryman)
+
+    const result = await sut.execute({
+      adminId: 'deliveryman-1',
+      name: 'João Silva',
+      cpf: '987.654.321-00',
+      password: 'password123',
+      email: 'joao.silva@example.com',
+      phone: '(11) 91234-5678',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanCreateDeliverymenError,
+    )
+    expect(result).toEqual(
+      left(new OnlyActiveAdminsCanCreateDeliverymenError()),
+    )
+  })
+
+  it('should return an error if admin is inactive', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      name: 'João Silva',
+      cpf: '987.654.321-00',
+      password: 'password123',
+      email: 'joao.silva@example.com',
+      phone: '(11) 91234-5678',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanCreateDeliverymenError,
+    )
+    expect(result).toEqual(
+      left(new OnlyActiveAdminsCanCreateDeliverymenError()),
+    )
   })
 })

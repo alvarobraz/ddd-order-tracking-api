@@ -1,10 +1,17 @@
 import { Order } from '@/domain/order-control/enterprise/entities/order'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { Either, left, right } from '@/core/either'
+import { OnlyActiveAdminsCanListOrdersError } from './errors/only-active-admins-can-list-orders-error'
 
 interface ListOrdersUseCaseRequest {
   adminId: string
 }
+
+type ListOrdersUseCaseResponse = Either<
+  OnlyActiveAdminsCanListOrdersError,
+  Order[]
+>
 
 export class ListOrdersUseCase {
   constructor(
@@ -12,12 +19,15 @@ export class ListOrdersUseCase {
     private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId }: ListOrdersUseCaseRequest): Promise<Order[]> {
+  async execute({
+    adminId,
+  }: ListOrdersUseCaseRequest): Promise<ListOrdersUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can list orders')
+      return left(new OnlyActiveAdminsCanListOrdersError())
     }
 
-    return this.ordersRepository.findAll()
+    const listOrders = await this.ordersRepository.findAll()
+    return right(listOrders)
   }
 }

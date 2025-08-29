@@ -1,6 +1,10 @@
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { Either, left, right } from '@/core/either'
+import { OrderNotFoundError } from './errors/order-not-found-error'
+import { Order } from '../../enterprise/entities/order'
+import { OnlyActiveAdminsCanUpdateOrdersError } from './errors/only-active-admins-can-update-orders-error'
 
 interface UpdateOrderUseCaseRequest {
   adminId: string
@@ -13,6 +17,13 @@ interface UpdateOrderUseCaseRequest {
   state?: string
   zipCode?: string
 }
+
+type UpdateOrderUseCaseResponse = Either<
+  OrderNotFoundError | OnlyActiveAdminsCanUpdateOrdersError,
+  {
+    order: Order
+  }
+>
 
 export class UpdateOrderUseCase {
   constructor(
@@ -30,15 +41,15 @@ export class UpdateOrderUseCase {
     city,
     state,
     zipCode,
-  }: UpdateOrderUseCaseRequest) {
+  }: UpdateOrderUseCaseRequest): Promise<UpdateOrderUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can update orders')
+      return left(new OnlyActiveAdminsCanUpdateOrdersError())
     }
 
     const order = await this.ordersRepository.findById(orderId)
     if (!order) {
-      throw new Error('Order not found')
+      return left(new OrderNotFoundError())
     }
 
     if (recipientId !== undefined) {
@@ -65,6 +76,6 @@ export class UpdateOrderUseCase {
 
     await this.ordersRepository.save(order)
 
-    return order
+    return right({ order })
   }
 }

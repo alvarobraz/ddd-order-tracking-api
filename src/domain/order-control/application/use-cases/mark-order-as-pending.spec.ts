@@ -1,40 +1,115 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { MarkOrderAsPendingUseCase } from './mark-order-as-pending'
-import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
-import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
-import { Order } from '@/domain/order-control/enterprise/entities/order'
+import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository'
+import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeUser } from 'test/factories/make-users'
 import { makeOrder } from 'test/factories/make-order'
+import { left } from '@/core/either'
+import { OnlyActiveAdminsCanMarkOrdersAsPendingError } from './errors/only-active-admins-can-mark-orders-as-pending-error'
+import { OrderNotFoundError } from './errors/order-not-found-error'
 
-describe('MarkOrderAsPendingUseCase', () => {
-  let ordersRepository: OrdersRepository
-  let usersRepository: UsersRepository
-  let sut: MarkOrderAsPendingUseCase
+let inMemoryOrdersRepository: InMemoryOrdersRepository
+let inMemoryUsersRepository: InMemoryUsersRepository
+let sut: MarkOrderAsPendingUseCase
 
+describe('Mark Order As Pending Use Case', () => {
   beforeEach(() => {
-    ordersRepository = {
-      create: vi.fn(),
-      findById: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-      findNearby: vi.fn(),
-      findByDeliverymanId: vi.fn(),
-    }
-    usersRepository = {
-      findByCpf: vi.fn(),
-      findById: vi.fn(),
-      create: vi.fn(),
-      save: vi.fn(),
-      patch: vi.fn(),
-      findAllDeliverymen: vi.fn(),
-    }
-    sut = new MarkOrderAsPendingUseCase(ordersRepository, usersRepository)
+    inMemoryOrdersRepository = new InMemoryOrdersRepository()
+    inMemoryUsersRepository = new InMemoryUsersRepository()
+    sut = new MarkOrderAsPendingUseCase(
+      inMemoryOrdersRepository,
+      inMemoryUsersRepository,
+    )
   })
 
-  it('should mark an order as pending if admin is valid and active', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
+  it('should mark order as pending if admin is valid and active', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        status: 'delivered',
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+    })
+
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      order: expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        recipientId: new UniqueEntityID('recipient-1'),
+        status: 'pending',
+      }),
+    })
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        status: 'pending',
+        street: 'Rua das Flores',
+        number: '123',
+      }),
+    )
+  })
+
+  it('should return an error if admin does not exist', async () => {
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanMarkOrdersAsPendingError,
+    )
+    expect(result).toEqual(
+      left(new OnlyActiveAdminsCanMarkOrdersAsPendingError()),
+    )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        status: expect.any(String), // Unchanged
+      }),
+    )
+  })
+
+  it('should return an error if admin is not an admin', async () => {
+    const deliveryman = makeUser(
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     const order = makeOrder(
       {
@@ -43,80 +118,87 @@ describe('MarkOrderAsPendingUseCase', () => {
       new UniqueEntityID('order-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
-    vi.spyOn(ordersRepository, 'save').mockResolvedValue(order)
+    await inMemoryUsersRepository.create(deliveryman)
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'deliveryman-1',
+      orderId: 'order-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanMarkOrdersAsPendingError,
+    )
+    expect(result).toEqual(
+      left(new OnlyActiveAdminsCanMarkOrdersAsPendingError()),
+    )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        status: expect.any(String), // Unchanged
+      }),
+    )
+  })
+
+  it('should return an error if admin is inactive', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryOrdersRepository.create(order)
 
     const result = await sut.execute({
       adminId: 'admin-1',
       orderId: 'order-1',
     })
 
-    expect(result).toBeInstanceOf(Order)
-    expect(result.status).toBe('pending')
-    expect(result.street).toBe(order.street)
-    expect(result.city).toBe(order.city)
-    expect(result.state).toBe(order.state)
-    expect(result.zipCode).toBe(order.zipCode)
-    expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
-    expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
-    expect(ordersRepository.save).toHaveBeenCalledWith(order)
-  })
-
-  it('should throw an error if admin does not exist', async () => {
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
-
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        orderId: 'order-1',
-      }),
-    ).rejects.toThrow('Only active admins can mark orders as pending')
-  })
-
-  it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = makeUser(
-      { role: 'deliveryman' },
-      new UniqueEntityID('deliveryman-1'),
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanMarkOrdersAsPendingError,
     )
-
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
-
-    await expect(
-      sut.execute({
-        adminId: 'deliveryman-1',
-        orderId: 'order-1',
+    expect(result).toEqual(
+      left(new OnlyActiveAdminsCanMarkOrdersAsPendingError()),
+    )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        status: expect.any(String), // Unchanged
       }),
-    ).rejects.toThrow('Only active admins can mark orders as pending')
+    )
   })
 
-  it('should throw an error if admin is inactive', async () => {
+  it('should return an error if order does not exist', async () => {
     const admin = makeUser(
-      { status: 'inactive' },
+      {
+        role: 'admin',
+        status: 'active',
+      },
       new UniqueEntityID('admin-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
+    await inMemoryUsersRepository.create(admin)
 
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        orderId: 'order-1',
-      }),
-    ).rejects.toThrow('Only active admins can mark orders as pending')
-  })
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+    })
 
-  it('should throw an error if order does not exist', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
-
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)
-
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        orderId: 'order-1',
-      }),
-    ).rejects.toThrow('Order not found')
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OrderNotFoundError)
+    expect(result).toEqual(left(new OrderNotFoundError()))
+    expect(await inMemoryOrdersRepository.findById('order-1')).toBeNull()
   })
 })

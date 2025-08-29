@@ -1,10 +1,23 @@
-import { Order } from '@/domain/order-control/enterprise/entities/order'
+import { Either, left, right } from '@/core/either'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { Order } from '@/domain/order-control/enterprise/entities/order'
+
+import { UserNotFoundError } from './errors/user-not-found-error'
+import { OnlyActiveAdminsCanListDeliverymenError } from './errors/only-active-admins-can-list-deliverymen-error'
+import { UserNotDeliverymanError } from './errors/user-not-deliveryman-error'
 
 interface ListUserDeliveriesUseCaseRequest {
-  deliverymanId: string
+  adminId: string
+  userId: string
 }
+
+type ListUserDeliveriesUseCaseResponse = Either<
+  | OnlyActiveAdminsCanListDeliverymenError
+  | UserNotFoundError
+  | UserNotDeliverymanError,
+  Order[]
+>
 
 export class ListUserDeliveriesUseCase {
   constructor(
@@ -13,17 +26,24 @@ export class ListUserDeliveriesUseCase {
   ) {}
 
   async execute({
-    deliverymanId,
-  }: ListUserDeliveriesUseCaseRequest): Promise<Order[]> {
-    const deliveryman = await this.usersRepository.findById(deliverymanId)
-    if (
-      !deliveryman ||
-      deliveryman.role !== 'deliveryman' ||
-      deliveryman.status !== 'active'
-    ) {
-      throw new Error('Only active deliverymen can list their deliveries')
+    adminId,
+    userId,
+  }: ListUserDeliveriesUseCaseRequest): Promise<ListUserDeliveriesUseCaseResponse> {
+    const admin = await this.usersRepository.findById(adminId)
+    if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
+      return left(new OnlyActiveAdminsCanListDeliverymenError())
     }
 
-    return this.ordersRepository.findByDeliverymanId(deliverymanId)
+    const deliveryman = await this.usersRepository.findById(userId)
+    if (!deliveryman) {
+      return left(new UserNotFoundError())
+    }
+
+    if (deliveryman.role !== 'deliveryman') {
+      return left(new UserNotDeliverymanError())
+    }
+
+    const deliveries = await this.ordersRepository.findByDeliverymanId(userId)
+    return right(deliveries)
   }
 }

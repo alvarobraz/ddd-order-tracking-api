@@ -1,4 +1,8 @@
+import { Either, left, right } from '@/core/either'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { ActiveDeliverymanNotFoundError } from './errors/active-deliveryman-not-found-error'
+import { OnlyActiveAdminsCanUpdateDeliverymenError } from './errors/only-active-admins-can-update-deliverymen-error'
+import { User } from '../../enterprise/entities/user'
 
 interface UpdateDeliverymanUseCaseRequest {
   adminId: string
@@ -7,6 +11,13 @@ interface UpdateDeliverymanUseCaseRequest {
   email?: string
   phone?: string
 }
+
+type UpdateDeliverymanUseCaseResponse = Either<
+  OnlyActiveAdminsCanUpdateDeliverymenError,
+  {
+    deliveryman: User
+  }
+>
 
 export class UpdateDeliverymanUseCase {
   constructor(private usersRepository: UsersRepository) {}
@@ -17,10 +28,10 @@ export class UpdateDeliverymanUseCase {
     name,
     email,
     phone,
-  }: UpdateDeliverymanUseCaseRequest) {
+  }: UpdateDeliverymanUseCaseRequest): Promise<UpdateDeliverymanUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can update deliverymen')
+      return left(new OnlyActiveAdminsCanUpdateDeliverymenError())
     }
 
     const deliveryman = await this.usersRepository.findById(deliverymanId)
@@ -29,7 +40,7 @@ export class UpdateDeliverymanUseCase {
       deliveryman.role !== 'deliveryman' ||
       deliveryman.status !== 'active'
     ) {
-      throw new Error('Active deliveryman not found')
+      return left(new ActiveDeliverymanNotFoundError())
     }
 
     if (name !== undefined) {
@@ -44,6 +55,8 @@ export class UpdateDeliverymanUseCase {
 
     await this.usersRepository.save(deliveryman)
 
-    return deliveryman
+    return right({
+      deliveryman,
+    })
   }
 }

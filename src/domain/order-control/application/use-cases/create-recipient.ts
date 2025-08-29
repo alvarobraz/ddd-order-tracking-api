@@ -1,6 +1,8 @@
 import { Recipient } from '@/domain/order-control/enterprise/entities/recipient'
 import { RecipientsRepository } from '@/domain/order-control/application/repositories/recipients-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { Either, left, right } from '@/core/either'
+import { OnlyActiveAdminsCanCreateRecipientsError } from './errors/only-active-admins-can-create-recipients-error'
 
 interface CreateRecipientUseCaseRequest {
   adminId: string
@@ -14,6 +16,13 @@ interface CreateRecipientUseCaseRequest {
   phone: string
   email: string
 }
+
+type CreateRecipientUseCaseResponse = Either<
+  OnlyActiveAdminsCanCreateRecipientsError,
+  {
+    recipient: Recipient
+  }
+>
 
 export class CreateRecipientUseCase {
   constructor(
@@ -32,10 +41,10 @@ export class CreateRecipientUseCase {
     zipCode,
     phone,
     email,
-  }: CreateRecipientUseCaseRequest) {
+  }: CreateRecipientUseCaseRequest): Promise<CreateRecipientUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can create recipients')
+      return left(new OnlyActiveAdminsCanCreateRecipientsError())
     }
 
     const recipient = Recipient.create({
@@ -51,7 +60,6 @@ export class CreateRecipientUseCase {
     })
 
     await this.recipientsRepository.create(recipient)
-
-    return recipient
+    return right({ recipient })
   }
 }

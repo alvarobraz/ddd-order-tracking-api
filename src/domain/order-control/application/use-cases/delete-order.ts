@@ -1,10 +1,20 @@
+import { Either, left, right } from '@/core/either'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { OnlyActiveAdminsCanDeleteOrdersError } from './errors/only-active-admins-can-delete-orders-error'
+import { OrderNotFoundError } from './errors/order-not-found-error'
 
 interface DeleteOrderUseCaseRequest {
   adminId: string
   orderId: string
 }
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+type DeleteOrderUseCaseUseCaseResponse = Either<
+  OnlyActiveAdminsCanDeleteOrdersError | OrderNotFoundError,
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  {}
+>
 
 export class DeleteOrderUseCase {
   constructor(
@@ -12,17 +22,22 @@ export class DeleteOrderUseCase {
     private usersRepository: UsersRepository,
   ) {}
 
-  async execute({ adminId, orderId }: DeleteOrderUseCaseRequest) {
+  async execute({
+    adminId,
+    orderId,
+  }: DeleteOrderUseCaseRequest): Promise<DeleteOrderUseCaseUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can delete orders')
+      return left(new OnlyActiveAdminsCanDeleteOrdersError())
     }
 
     const order = await this.ordersRepository.findById(orderId)
     if (!order) {
-      throw new Error('Order not found')
+      return left(new OrderNotFoundError())
     }
 
     await this.ordersRepository.delete(orderId)
+
+    return right({})
   }
 }

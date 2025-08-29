@@ -2,6 +2,8 @@ import { Order } from '@/domain/order-control/enterprise/entities/order'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { Either, left, right } from '@/core/either'
+import { OnlyActiveAdminsCanCreateOrdersError } from './errors/only-active-admins-can-create-orders-error'
 
 interface CreateOrderUseCaseRequest {
   adminId: string
@@ -13,6 +15,13 @@ interface CreateOrderUseCaseRequest {
   state: string
   zipCode: string
 }
+
+type CreateOrderUseCaseResponse = Either<
+  OnlyActiveAdminsCanCreateOrdersError,
+  {
+    order: Order
+  }
+>
 
 export class CreateOrderUseCase {
   constructor(
@@ -29,10 +38,10 @@ export class CreateOrderUseCase {
     city,
     state,
     zipCode,
-  }: CreateOrderUseCaseRequest) {
+  }: CreateOrderUseCaseRequest): Promise<CreateOrderUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can create orders')
+      return left(new OnlyActiveAdminsCanCreateOrdersError())
     }
 
     const order = Order.create({
@@ -48,6 +57,8 @@ export class CreateOrderUseCase {
 
     await this.ordersRepository.create(order)
 
-    return order
+    return right({
+      order,
+    })
   }
 }

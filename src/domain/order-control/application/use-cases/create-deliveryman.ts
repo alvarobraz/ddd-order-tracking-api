@@ -1,5 +1,7 @@
 import { User } from '@/domain/order-control/enterprise/entities/user'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { Either, left, right } from '@/core/either'
+import { OnlyActiveAdminsCanCreateDeliverymenError } from './errors/only-active-admins-can-create-deliverymen-error'
 
 interface CreateDeliverymanUseCaseRequest {
   adminId: string
@@ -9,6 +11,11 @@ interface CreateDeliverymanUseCaseRequest {
   email: string
   phone: string
 }
+
+type CreateDeliverymanUseCaseResponse = Either<
+  OnlyActiveAdminsCanCreateDeliverymenError,
+  User
+>
 
 export class CreateDeliverymanUseCase {
   constructor(private usersRepository: UsersRepository) {}
@@ -20,10 +27,10 @@ export class CreateDeliverymanUseCase {
     password,
     email,
     phone,
-  }: CreateDeliverymanUseCaseRequest) {
+  }: CreateDeliverymanUseCaseRequest): Promise<CreateDeliverymanUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can create deliverymen')
+      return left(new OnlyActiveAdminsCanCreateDeliverymenError())
     }
 
     const user = User.create({
@@ -38,6 +45,6 @@ export class CreateDeliverymanUseCase {
 
     await this.usersRepository.create(user)
 
-    return user
+    return right(user)
   }
 }

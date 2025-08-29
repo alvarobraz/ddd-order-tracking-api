@@ -1,5 +1,9 @@
+import { left } from '@/core/either'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { OnlyActiveUsersCanMarkOrdersAsReturnedError } from './errors/only-active-users-can-mark-orders-as-returned-error'
+import { OrderNotFoundError } from './errors/order-not-found-error'
+import { OnlyAssignedDeliverymanOrAdminCanMarkOrderAsReturnedError } from './errors/only-assigned-deliveryman-or-admin-can-mark-order-as-returned-error'
 
 interface MarkOrderAsReturnedUseCaseRequest {
   userId: string
@@ -15,20 +19,20 @@ export class MarkOrderAsReturnedUseCase {
   async execute({ userId, orderId }: MarkOrderAsReturnedUseCaseRequest) {
     const user = await this.usersRepository.findById(userId)
     if (!user || user.status !== 'active') {
-      throw new Error('Only active users can mark orders as returned')
+      return left(new OnlyActiveUsersCanMarkOrdersAsReturnedError())
     }
 
     const order = await this.ordersRepository.findById(orderId)
     if (!order) {
-      throw new Error('Order not found')
+      return left(new OrderNotFoundError())
     }
 
     if (
       user.role === 'deliveryman' &&
       order.deliverymanId?.toString() !== userId
     ) {
-      throw new Error(
-        'Only the assigned deliveryman or an admin can mark the order as returned',
+      return left(
+        new OnlyAssignedDeliverymanOrAdminCanMarkOrderAsReturnedError(),
       )
     }
 

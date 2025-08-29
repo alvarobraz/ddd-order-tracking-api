@@ -1,4 +1,7 @@
+import { left, right, Either } from '@/core/either'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { InvalidCredentialsError } from './errors/invalid-credentials-error'
+import { UserAccountIsInactiveError } from './errors/user-account-is-inactive-error'
 
 interface LoginUserUseCaseRequest {
   cpf: string
@@ -16,20 +19,25 @@ export class LoginUserUseCase {
   async execute({
     cpf,
     password,
-  }: LoginUserUseCaseRequest): Promise<LoginUserUseCaseResponse> {
+  }: LoginUserUseCaseRequest): Promise<
+    Either<
+      InvalidCredentialsError | UserAccountIsInactiveError,
+      LoginUserUseCaseResponse
+    >
+  > {
     const user = await this.usersRepository.findByCpf(cpf)
 
     if (!user || user.password !== password) {
-      throw new Error('Invalid credentials')
+      return left(new InvalidCredentialsError())
     }
 
     if (user.status !== 'active') {
-      throw new Error('User account is inactive')
+      return left(new UserAccountIsInactiveError())
     }
 
-    return {
+    return right({
       userId: user.id.toString(),
       role: user.role,
-    }
+    })
   }
 }

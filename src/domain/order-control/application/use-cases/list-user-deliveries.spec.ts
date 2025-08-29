@@ -1,40 +1,45 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { ListUserDeliveriesUseCase } from './list-user-deliveries'
-import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
-import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository'
+import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeUser } from 'test/factories/make-users'
 import { makeOrder } from 'test/factories/make-order'
+import { left } from '@/core/either'
 
-describe('ListUserDeliveriesUseCase', () => {
-  let ordersRepository: OrdersRepository
-  let usersRepository: UsersRepository
-  let sut: ListUserDeliveriesUseCase
+import { UserNotFoundError } from './errors/user-not-found-error'
+import { OnlyActiveAdminsCanListDeliverymenError } from './errors/only-active-admins-can-list-deliverymen-error'
+import { UserNotDeliverymanError } from './errors/user-not-deliveryman-error'
 
+let inMemoryOrdersRepository: InMemoryOrdersRepository
+let inMemoryUsersRepository: InMemoryUsersRepository
+let sut: ListUserDeliveriesUseCase
+
+describe('List User Deliveries Use Case', () => {
   beforeEach(() => {
-    ordersRepository = {
-      create: vi.fn(),
-      findById: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-      findNearby: vi.fn(),
-      findByDeliverymanId: vi.fn(),
-    }
-    usersRepository = {
-      findByCpf: vi.fn(),
-      findById: vi.fn(),
-      create: vi.fn(),
-      save: vi.fn(),
-      patch: vi.fn(),
-      findAllDeliverymen: vi.fn(),
-    }
-    sut = new ListUserDeliveriesUseCase(ordersRepository, usersRepository)
+    inMemoryOrdersRepository = new InMemoryOrdersRepository()
+    inMemoryUsersRepository = new InMemoryUsersRepository()
+    sut = new ListUserDeliveriesUseCase(
+      inMemoryOrdersRepository,
+      inMemoryUsersRepository,
+    )
   })
 
-  it('should list deliveries for a valid and active deliveryman', async () => {
+  it('should list deliveries for a deliveryman if admin is valid and active', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
     const deliveryman = makeUser(
-      { role: 'deliveryman' },
+      {
+        role: 'deliveryman',
+        status: 'active',
+        name: 'João Silva',
+      },
       new UniqueEntityID('deliveryman-1'),
     )
 
@@ -49,90 +54,207 @@ describe('ListUserDeliveriesUseCase', () => {
     const order2 = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-2'),
-        deliverymanId: new UniqueEntityID('deliveryman-2'),
+        deliverymanId: new UniqueEntityID('deliveryman-1'),
       },
       new UniqueEntityID('order-2'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
-    vi.spyOn(ordersRepository, 'findByDeliverymanId').mockResolvedValue([
-      order1,
-      order2,
-    ])
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryUsersRepository.create(deliveryman)
+    await inMemoryOrdersRepository.create(order1)
+    await inMemoryOrdersRepository.create(order2)
 
     const result = await sut.execute({
-      deliverymanId: 'deliveryman-1',
+      adminId: 'admin-1',
+      userId: 'deliveryman-1',
     })
 
-    expect(result).toEqual([order1, order2])
-    expect(result[0].street).toBe(order1.street)
-    expect(result[0].city).toBe(order1.city)
-    expect(result[0].state).toBe(order1.state)
-    expect(result[0].zipCode).toBe(order1.zipCode)
-    expect(result[1].street).toBe(order2.street)
-    expect(result[1].city).toBe(order2.city)
-    expect(result[1].state).toBe(order2.state)
-    expect(result[1].zipCode).toBe(order2.zipCode)
-    expect(usersRepository.findById).toHaveBeenCalledWith('deliveryman-1')
-    expect(ordersRepository.findByDeliverymanId).toHaveBeenCalledWith(
-      'deliveryman-1',
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toBeInstanceOf(Array)
+    expect(result.value).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: new UniqueEntityID('order-1'),
+          recipientId: new UniqueEntityID('recipient-1'),
+          deliverymanId: new UniqueEntityID('deliveryman-1'),
+        }),
+        expect.objectContaining({
+          id: new UniqueEntityID('order-2'),
+          recipientId: new UniqueEntityID('recipient-2'),
+          deliverymanId: new UniqueEntityID('deliveryman-1'),
+        }),
+      ]),
     )
+    expect(result.value).toHaveLength(2)
+    expect(
+      await inMemoryOrdersRepository.findByDeliverymanId('deliveryman-1'),
+    ).toHaveLength(2)
   })
 
-  it('should throw an error if deliveryman does not exist', async () => {
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
+  it('should return an empty array if no deliveries exist for the deliveryman', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    await expect(
-      sut.execute({
-        deliverymanId: 'deliveryman-1',
-      }),
-    ).rejects.toThrow('Only active deliverymen can list their deliveries')
-  })
-
-  it('should throw an error if user is not a deliveryman', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
-
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-
-    await expect(
-      sut.execute({
-        deliverymanId: 'admin-1',
-      }),
-    ).rejects.toThrow('Only active deliverymen can list their deliveries')
-  })
-
-  it('should throw an error if deliveryman is inactive', async () => {
     const deliveryman = makeUser(
-      { role: 'deliveryman', status: 'inactive' },
+      {
+        role: 'deliveryman',
+        status: 'active',
+        name: 'João Silva',
+      },
       new UniqueEntityID('deliveryman-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryUsersRepository.create(deliveryman)
 
-    await expect(
-      sut.execute({
-        deliverymanId: 'deliveryman-1',
-      }),
-    ).rejects.toThrow('Only active deliverymen can list their deliveries')
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      userId: 'deliveryman-1',
+    })
+
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toBeInstanceOf(Array)
+    expect(result.value).toEqual([])
+    expect(result.value).toHaveLength(0)
+    expect(
+      await inMemoryOrdersRepository.findByDeliverymanId('deliveryman-1'),
+    ).toHaveLength(0)
   })
 
-  it('should return an empty array if no deliveries are found', async () => {
+  it('should return an error if admin does not exist', async () => {
     const deliveryman = makeUser(
-      { role: 'deliveryman' },
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
       new UniqueEntityID('deliveryman-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
-    vi.spyOn(ordersRepository, 'findByDeliverymanId').mockResolvedValue([])
+    await inMemoryUsersRepository.create(deliveryman)
 
     const result = await sut.execute({
-      deliverymanId: 'deliveryman-1',
+      adminId: 'admin-1',
+      userId: 'deliveryman-1',
     })
 
-    expect(result).toEqual([])
-    expect(usersRepository.findById).toHaveBeenCalledWith('deliveryman-1')
-    expect(ordersRepository.findByDeliverymanId).toHaveBeenCalledWith(
-      'deliveryman-1',
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OnlyActiveAdminsCanListDeliverymenError)
+    expect(result).toEqual(left(new OnlyActiveAdminsCanListDeliverymenError()))
+  })
+
+  it('should return an error if admin is not an admin', async () => {
+    const deliveryman1 = makeUser(
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
     )
+
+    const deliveryman2 = makeUser(
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-2'),
+    )
+
+    await inMemoryUsersRepository.create(deliveryman1)
+    await inMemoryUsersRepository.create(deliveryman2)
+
+    const result = await sut.execute({
+      adminId: 'deliveryman-1',
+      userId: 'deliveryman-2',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OnlyActiveAdminsCanListDeliverymenError)
+    expect(result).toEqual(left(new OnlyActiveAdminsCanListDeliverymenError()))
+  })
+
+  it('should return an error if admin is inactive', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const deliveryman = makeUser(
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryUsersRepository.create(deliveryman)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      userId: 'deliveryman-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OnlyActiveAdminsCanListDeliverymenError)
+    expect(result).toEqual(left(new OnlyActiveAdminsCanListDeliverymenError()))
+  })
+
+  it('should return an error if user does not exist', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      userId: 'deliveryman-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(UserNotFoundError)
+    expect(result).toEqual(left(new UserNotFoundError()))
+  })
+
+  it('should return an error if user is not a deliveryman', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const user = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('user-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryUsersRepository.create(user)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      userId: 'user-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(UserNotDeliverymanError)
+    expect(result).toEqual(left(new UserNotDeliverymanError()))
   })
 })

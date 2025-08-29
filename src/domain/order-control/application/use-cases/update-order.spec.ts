@@ -1,40 +1,181 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { UpdateOrderUseCase } from './update-order'
-import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
-import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
-import { Order } from '@/domain/order-control/enterprise/entities/order'
+import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository'
+import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeUser } from 'test/factories/make-users'
 import { makeOrder } from 'test/factories/make-order'
+import { left } from '@/core/either'
+
+import { OrderNotFoundError } from './errors/order-not-found-error'
+import { OnlyActiveAdminsCanUpdateOrdersError } from './errors/only-active-admins-can-update-orders-error'
+
+let inMemoryOrdersRepository: InMemoryOrdersRepository
+let inMemoryUsersRepository: InMemoryUsersRepository
+let sut: UpdateOrderUseCase
 
 describe('Update Order Use Case', () => {
-  let ordersRepository: OrdersRepository
-  let usersRepository: UsersRepository
-  let sut: UpdateOrderUseCase
-
   beforeEach(() => {
-    ordersRepository = {
-      create: vi.fn(),
-      findById: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-      findNearby: vi.fn(),
-      findByDeliverymanId: vi.fn(),
-    }
-    usersRepository = {
-      findByCpf: vi.fn(),
-      findById: vi.fn(),
-      create: vi.fn(),
-      save: vi.fn(),
-      patch: vi.fn(),
-      findAllDeliverymen: vi.fn(),
-    }
-    sut = new UpdateOrderUseCase(ordersRepository, usersRepository)
+    inMemoryOrdersRepository = new InMemoryOrdersRepository()
+    inMemoryUsersRepository = new InMemoryUsersRepository()
+    sut = new UpdateOrderUseCase(
+      inMemoryOrdersRepository,
+      inMemoryUsersRepository,
+    )
   })
 
-  it('should update an order if admin is valid and active', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
+  it('should update order street if admin is valid and active', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+      street: 'Rua das Palmeiras',
+    })
+
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      order: expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Rua das Palmeiras',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+      }),
+    })
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        street: 'Rua das Palmeiras',
+        number: '123',
+      }),
+    )
+  })
+
+  it('should update all order fields if admin is valid and active', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+      recipientId: 'recipient-2',
+      street: 'Rua das Palmeiras',
+      number: '456',
+      neighborhood: 'Batel',
+      city: 'São Paulo',
+      state: 'SP',
+      zipCode: '01310-000',
+    })
+
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      order: expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        recipientId: new UniqueEntityID('recipient-2'),
+        street: 'Rua das Palmeiras',
+        number: '456',
+        neighborhood: 'Batel',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01310-000',
+      }),
+    })
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        recipientId: new UniqueEntityID('recipient-2'),
+        street: 'Rua das Palmeiras',
+        number: '456',
+        neighborhood: 'Batel',
+        city: 'São Paulo',
+        state: 'SP',
+        zipCode: '01310-000',
+      }),
+    )
+  })
+
+  it('should return an error if admin does not exist', async () => {
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+      street: 'Rua das Palmeiras',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OnlyActiveAdminsCanUpdateOrdersError)
+    expect(result).toEqual(left(new OnlyActiveAdminsCanUpdateOrdersError()))
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        street: expect.any(String), // Unchanged
+      }),
+    )
+  })
+
+  it('should return an error if admin is not an admin', async () => {
+    const deliveryman = makeUser(
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
+      new UniqueEntityID('deliveryman-1'),
+    )
 
     const order = makeOrder(
       {
@@ -43,82 +184,82 @@ describe('Update Order Use Case', () => {
       new UniqueEntityID('order-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
-    vi.spyOn(ordersRepository, 'save').mockResolvedValue(order)
+    await inMemoryUsersRepository.create(deliveryman)
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      adminId: 'deliveryman-1',
+      orderId: 'order-1',
+      street: 'Rua das Palmeiras',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OnlyActiveAdminsCanUpdateOrdersError)
+    expect(result).toEqual(left(new OnlyActiveAdminsCanUpdateOrdersError()))
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        street: expect.any(String), // Unchanged
+      }),
+    )
+  })
+
+  it('should return an error if admin is inactive', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'inactive',
+      },
+      new UniqueEntityID('admin-1'),
+    )
+
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryOrdersRepository.create(order)
 
     const result = await sut.execute({
       adminId: 'admin-1',
       orderId: 'order-1',
-      street: 'Ciryllo Merlin',
-      number: '456',
+      street: 'Rua das Palmeiras',
     })
 
-    expect(result).toBeInstanceOf(Order)
-    expect(result.street).toBe('Ciryllo Merlin')
-    expect(result.number).toBe('456')
-    expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
-    expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
-    expect(ordersRepository.save).toHaveBeenCalledWith(order)
-  })
-
-  it('should throw an error if admin does not exist', async () => {
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
-
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        orderId: 'order-1',
-        street: 'Oskar Kolbe',
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OnlyActiveAdminsCanUpdateOrdersError)
+    expect(result).toEqual(left(new OnlyActiveAdminsCanUpdateOrdersError()))
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        street: expect.any(String), // Unchanged
       }),
-    ).rejects.toThrow('Only active admins can update orders')
-  })
-
-  it('should throw an error if admin is not an admin', async () => {
-    const deliveryman = makeUser(
-      { role: 'deliveryman' },
-      new UniqueEntityID('deliveryman-1'),
     )
-
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
-
-    await expect(
-      sut.execute({
-        adminId: 'deliveryman-1',
-        orderId: 'order-1',
-        street: 'New St',
-      }),
-    ).rejects.toThrow('Only active admins can update orders')
   })
 
-  it('should throw an error if admin is inactive', async () => {
+  it('should return an error if order does not exist', async () => {
     const admin = makeUser(
-      { status: 'inactive' },
+      {
+        role: 'admin',
+        status: 'active',
+      },
       new UniqueEntityID('admin-1'),
     )
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
 
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        orderId: 'order-1',
-        street: 'Oscar Kolbe',
-      }),
-    ).rejects.toThrow('Only active admins can update orders')
-  })
+    await inMemoryUsersRepository.create(admin)
 
-  it('should throw an error if order does not exist', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      orderId: 'order-1',
+      street: 'Rua das Palmeiras',
+    })
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)
-
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        orderId: 'order-1',
-        street: 'Ciryllo Merlin',
-      }),
-    ).rejects.toThrow('Order not found')
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OrderNotFoundError)
+    expect(result).toEqual(left(new OrderNotFoundError()))
+    expect(await inMemoryOrdersRepository.findById('order-1')).toBeNull()
   })
 })

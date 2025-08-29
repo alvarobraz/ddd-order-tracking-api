@@ -1,10 +1,17 @@
 import { Recipient } from '@/domain/order-control/enterprise/entities/recipient'
 import { RecipientsRepository } from '@/domain/order-control/application/repositories/recipients-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { Either, left, right } from '@/core/either'
+import { OnlyActiveAdminsCanListRecipientsError } from './errors/only-active-admins-can-list-recipients-error'
 
 interface ListRecipientsUseCaseRequest {
   adminId: string
 }
+
+type ListRecipientsUseCaseResponse = Either<
+  OnlyActiveAdminsCanListRecipientsError,
+  Recipient[]
+>
 
 export class ListRecipientsUseCase {
   constructor(
@@ -14,12 +21,13 @@ export class ListRecipientsUseCase {
 
   async execute({
     adminId,
-  }: ListRecipientsUseCaseRequest): Promise<Recipient[]> {
+  }: ListRecipientsUseCaseRequest): Promise<ListRecipientsUseCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can list recipients')
+      return left(new OnlyActiveAdminsCanListRecipientsError())
     }
 
-    return this.recipientsRepository.findAll()
+    const listRecipients = await this.recipientsRepository.findAll()
+    return right(listRecipients)
   }
 }

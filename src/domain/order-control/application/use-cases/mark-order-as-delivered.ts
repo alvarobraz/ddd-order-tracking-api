@@ -1,5 +1,11 @@
+import { left } from '@/core/either'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { OnlyActiveDeliverymenCanMarkOrdersAsDeliveredError } from './errors/only-active-deliverymen-can-mark-orders-as-delivered-error'
+import { OrderNotFoundError } from './errors/order-not-found-error'
+import { OnlyAssignedDeliverymanCanMarkOrderAsDeliveredError } from './errors/only-assigned-deliveryman-can-mark-order-as-delivered-error'
+import { OrderMustBePickedUpToBeMarkedAsDeliveredError } from './errors/order-must-be-picked-up-to-be-marked-as-delivered-error'
+import { DeliveryPhotoIsRequiredError } from './errors/delivery-photo-is-required-error'
 
 interface MarkOrderAsDeliveredUseCaseRequest {
   deliverymanId: string
@@ -24,26 +30,24 @@ export class MarkOrderAsDeliveredUseCase {
       deliveryman.role !== 'deliveryman' ||
       deliveryman.status !== 'active'
     ) {
-      throw new Error('Only active deliverymen can mark orders as delivered')
+      return left(new OnlyActiveDeliverymenCanMarkOrdersAsDeliveredError())
     }
 
     const order = await this.ordersRepository.findById(orderId)
     if (!order) {
-      throw new Error('Order not found')
+      return left(new OrderNotFoundError())
     }
 
     if (order.deliverymanId?.toString() !== deliverymanId) {
-      throw new Error(
-        'Only the assigned deliveryman can mark the order as delivered',
-      )
+      return left(new OnlyAssignedDeliverymanCanMarkOrderAsDeliveredError())
     }
 
     if (order.status !== 'picked_up') {
-      throw new Error('Order must be picked up to be marked as delivered')
+      return left(new OrderMustBePickedUpToBeMarkedAsDeliveredError())
     }
 
     if (!deliveryPhoto) {
-      throw new Error('Delivery photo is required')
+      return left(new DeliveryPhotoIsRequiredError())
     }
 
     order.status = 'delivered'

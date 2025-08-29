@@ -1,4 +1,7 @@
+import { left } from '@/core/either'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { UserNotFoundError } from './errors/user-not-found-error'
+import { OnlyActiveAdminsCanChangeUserPasswordsError } from './errors/only-active-admins-can-change-user-passwords-error'
 
 interface ChangeUserPasswordUseCaseRequest {
   adminId: string
@@ -16,12 +19,12 @@ export class ChangeUserPasswordUseCase {
   }: ChangeUserPasswordUseCaseRequest) {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can change user passwords')
+      return left(new OnlyActiveAdminsCanChangeUserPasswordsError())
     }
 
     const user = await this.usersRepository.findById(userId)
     if (!user) {
-      throw new Error('User not found')
+      return left(new UserNotFoundError())
     }
 
     user.password = newPassword

@@ -1,5 +1,9 @@
+import { Either, left, right } from '@/core/either'
 import { RecipientsRepository } from '@/domain/order-control/application/repositories/recipients-repository'
 import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { RecipientNotFoundError } from './errors/recipient-not-found-error'
+import { Recipient } from '../../enterprise/entities/recipient'
+import { OnlyActiveAdminsCanUpdateRecipientsError } from './errors/only-active-admins-can-update-recipients-error'
 
 interface UpdateRecipientUseCaseRequest {
   adminId: string
@@ -16,6 +20,13 @@ interface UpdateRecipientUseCaseRequest {
   latitude?: number
   longitude?: number
 }
+
+type UpdateRecipientCaseResponse = Either<
+  RecipientNotFoundError | OnlyActiveAdminsCanUpdateRecipientsError,
+  {
+    recipient: Recipient
+  }
+>
 
 export class UpdateRecipientUseCase {
   constructor(
@@ -35,15 +46,15 @@ export class UpdateRecipientUseCase {
     zipCode,
     phone,
     email,
-  }: UpdateRecipientUseCaseRequest) {
+  }: UpdateRecipientUseCaseRequest): Promise<UpdateRecipientCaseResponse> {
     const admin = await this.usersRepository.findById(adminId)
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
-      throw new Error('Only active admins can update recipients')
+      return left(new OnlyActiveAdminsCanUpdateRecipientsError())
     }
 
     const recipient = await this.recipientsRepository.findById(recipientId)
     if (!recipient) {
-      throw new Error('Recipient not found')
+      return left(new RecipientNotFoundError())
     }
 
     if (name !== undefined) {
@@ -76,6 +87,6 @@ export class UpdateRecipientUseCase {
 
     await this.recipientsRepository.save(recipient)
 
-    return recipient
+    return right({ recipient })
   }
 }

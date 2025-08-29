@@ -2,11 +2,20 @@ import { Notification } from '@/domain/order-control/enterprise/entities/notific
 import { NotificationsRepository } from '@/domain/order-control/application/repositories/notifications-repository'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { OrderNotFoundError } from './errors/order-not-found-error'
+import { Either, left, right } from '@/core/either'
 
 interface NotifyRecipientUseCaseRequest {
   orderId: string
   status: 'pending' | 'picked_up' | 'delivered' | 'returned'
 }
+
+type NotifyRecipientUseCaseResponse = Either<
+  OrderNotFoundError,
+  {
+    notification: Notification
+  }
+>
 
 export class NotifyRecipientUseCase {
   constructor(
@@ -14,10 +23,13 @@ export class NotifyRecipientUseCase {
     private notificationsRepository: NotificationsRepository,
   ) {}
 
-  async execute({ orderId, status }: NotifyRecipientUseCaseRequest) {
+  async execute({
+    orderId,
+    status,
+  }: NotifyRecipientUseCaseRequest): Promise<NotifyRecipientUseCaseResponse> {
     const order = await this.ordersRepository.findById(orderId)
     if (!order) {
-      throw new Error('Order not found')
+      return left(new OrderNotFoundError())
     }
 
     const notification = Notification.create({
@@ -28,6 +40,6 @@ export class NotifyRecipientUseCase {
 
     await this.notificationsRepository.create(notification)
 
-    return notification
+    return right({ notification })
   }
 }

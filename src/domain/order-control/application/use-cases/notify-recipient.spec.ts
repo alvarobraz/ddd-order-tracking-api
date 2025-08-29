@@ -1,33 +1,27 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { NotifyRecipientUseCase } from './notify-recipient'
-import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
-import { NotificationsRepository } from '@/domain/order-control/application/repositories/notifications-repository'
-import { Notification } from '@/domain/order-control/enterprise/entities/notification'
+import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository'
+import { InMemoryNotificationsRepository } from 'test/repositories/in-memory-notifications-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeOrder } from 'test/factories/make-order'
+import { left } from '@/core/either'
+import { OrderNotFoundError } from './errors/order-not-found-error'
 
-describe('NotifyRecipientUseCase', () => {
-  let ordersRepository: OrdersRepository
-  let notificationsRepository: NotificationsRepository
-  let sut: NotifyRecipientUseCase
+let inMemoryOrdersRepository: InMemoryOrdersRepository
+let inMemoryNotificationsRepository: InMemoryNotificationsRepository
+let sut: NotifyRecipientUseCase
 
+describe('Notify Recipient Use Case', () => {
   beforeEach(() => {
-    ordersRepository = {
-      create: vi.fn(),
-      findById: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-      findNearby: vi.fn(),
-      findByDeliverymanId: vi.fn(),
-    }
-    notificationsRepository = {
-      create: vi.fn().mockResolvedValue(undefined), // Mock returns void
-    }
-    sut = new NotifyRecipientUseCase(ordersRepository, notificationsRepository)
+    inMemoryOrdersRepository = new InMemoryOrdersRepository()
+    inMemoryNotificationsRepository = new InMemoryNotificationsRepository()
+    sut = new NotifyRecipientUseCase(
+      inMemoryOrdersRepository,
+      inMemoryNotificationsRepository,
+    )
   })
 
-  it('should create a notification for recipient when order status is pending', async () => {
+  it('should create a notification for an order with status pending', async () => {
     const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
@@ -35,29 +29,37 @@ describe('NotifyRecipientUseCase', () => {
       new UniqueEntityID('order-1'),
     )
 
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
-    vi.spyOn(notificationsRepository, 'create')
+    await inMemoryOrdersRepository.create(order)
 
     const result = await sut.execute({
       orderId: 'order-1',
       status: 'pending',
     })
 
-    expect(result).toBeInstanceOf(Notification)
-    expect(result.orderId.toString()).toBe('order-1')
-    expect(result.message).toBe('Order status updated to pending')
-    expect(result.type).toBe('email')
-    expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
-    expect(notificationsRepository.create).toHaveBeenCalledWith(
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      notification: expect.objectContaining({
+        orderId: new UniqueEntityID('order-1'),
+        message: 'Order status updated to pending',
+        type: 'email',
+      }),
+    })
+    expect(inMemoryNotificationsRepository.items).toHaveLength(1)
+    expect(inMemoryNotificationsRepository.items[0]).toEqual(
       expect.objectContaining({
         orderId: new UniqueEntityID('order-1'),
         message: 'Order status updated to pending',
         type: 'email',
       }),
     )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+      }),
+    )
   })
 
-  it('should create a notification for recipient when order status is picked_up', async () => {
+  it('should create a notification for an order with status picked_up', async () => {
     const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
@@ -65,58 +67,75 @@ describe('NotifyRecipientUseCase', () => {
       new UniqueEntityID('order-1'),
     )
 
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
-    vi.spyOn(notificationsRepository, 'create')
+    await inMemoryOrdersRepository.create(order)
 
     const result = await sut.execute({
       orderId: 'order-1',
       status: 'picked_up',
     })
 
-    expect(result).toBeInstanceOf(Notification)
-    expect(result.orderId.toString()).toBe('order-1')
-    expect(result.message).toBe('Order status updated to picked_up')
-    expect(result.type).toBe('email')
-    expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
-    expect(notificationsRepository.create).toHaveBeenCalledWith(
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      notification: expect.objectContaining({
+        orderId: new UniqueEntityID('order-1'),
+        message: 'Order status updated to picked_up',
+        type: 'email',
+      }),
+    })
+    expect(inMemoryNotificationsRepository.items).toHaveLength(1)
+    expect(inMemoryNotificationsRepository.items[0]).toEqual(
       expect.objectContaining({
         orderId: new UniqueEntityID('order-1'),
         message: 'Order status updated to picked_up',
         type: 'email',
       }),
     )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+      }),
+    )
   })
 
-  it('should create a notification for recipient when order status is delivered', async () => {
+  it('should create a notification for an order with status delivered', async () => {
     const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
       },
       new UniqueEntityID('order-1'),
     )
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
-    vi.spyOn(notificationsRepository, 'create')
+
+    await inMemoryOrdersRepository.create(order)
 
     const result = await sut.execute({
       orderId: 'order-1',
       status: 'delivered',
     })
 
-    expect(result).toBeInstanceOf(Notification)
-    expect(result.orderId.toString()).toBe('order-1')
-    expect(result.message).toBe('Order status updated to delivered')
-    expect(result.type).toBe('email')
-    expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
-    expect(notificationsRepository.create).toHaveBeenCalledWith(
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      notification: expect.objectContaining({
+        orderId: new UniqueEntityID('order-1'),
+        message: 'Order status updated to delivered',
+        type: 'email',
+      }),
+    })
+    expect(inMemoryNotificationsRepository.items).toHaveLength(1)
+    expect(inMemoryNotificationsRepository.items[0]).toEqual(
       expect.objectContaining({
         orderId: new UniqueEntityID('order-1'),
         message: 'Order status updated to delivered',
         type: 'email',
       }),
     )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+      }),
+    )
   })
 
-  it('should create a notification for recipient when order status is returned', async () => {
+  it('should create a notification for an order with status returned', async () => {
     const order = makeOrder(
       {
         recipientId: new UniqueEntityID('recipient-1'),
@@ -124,36 +143,46 @@ describe('NotifyRecipientUseCase', () => {
       new UniqueEntityID('order-1'),
     )
 
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(order)
-    vi.spyOn(notificationsRepository, 'create')
+    await inMemoryOrdersRepository.create(order)
 
     const result = await sut.execute({
       orderId: 'order-1',
       status: 'returned',
     })
 
-    expect(result).toBeInstanceOf(Notification)
-    expect(result.orderId.toString()).toBe('order-1')
-    expect(result.message).toBe('Order status updated to returned')
-    expect(result.type).toBe('email')
-    expect(ordersRepository.findById).toHaveBeenCalledWith('order-1')
-    expect(notificationsRepository.create).toHaveBeenCalledWith(
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({
+      notification: expect.objectContaining({
+        orderId: new UniqueEntityID('order-1'),
+        message: 'Order status updated to returned',
+        type: 'email',
+      }),
+    })
+    expect(inMemoryNotificationsRepository.items).toHaveLength(1)
+    expect(inMemoryNotificationsRepository.items[0]).toEqual(
       expect.objectContaining({
         orderId: new UniqueEntityID('order-1'),
         message: 'Order status updated to returned',
         type: 'email',
       }),
     )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+      }),
+    )
   })
 
-  it('should throw an error if order does not exist', async () => {
-    vi.spyOn(ordersRepository, 'findById').mockResolvedValue(null)
+  it('should return an error if order does not exist', async () => {
+    const result = await sut.execute({
+      orderId: 'order-1',
+      status: 'pending',
+    })
 
-    await expect(
-      sut.execute({
-        orderId: 'order-1',
-        status: 'pending',
-      }),
-    ).rejects.toThrow('Order not found')
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(OrderNotFoundError)
+    expect(result).toEqual(left(new OrderNotFoundError()))
+    expect(inMemoryNotificationsRepository.items).toHaveLength(0)
+    expect(await inMemoryOrdersRepository.findById('order-1')).toBeNull()
   })
 })

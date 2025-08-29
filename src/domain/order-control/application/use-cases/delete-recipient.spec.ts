@@ -1,108 +1,191 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { DeleteRecipientUseCase } from './delete-recipient'
-import { RecipientsRepository } from '@/domain/order-control/application/repositories/recipients-repository'
-import { UsersRepository } from '@/domain/order-control/application/repositories/users-repository'
+import { InMemoryRecipientsRepository } from 'test/repositories/in-memory-recipients-repository'
+import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeUser } from 'test/factories/make-users'
 import { makeRecipient } from 'test/factories/make-recipient'
+import { left } from '@/core/either'
+import { OnlyActiveAdminsCanDeleteRecipientsError } from './errors/only-active-admins-can-delete-recipients-error'
+import { RecipientNotFoundError } from './errors/recipient-not-found-error'
 
-describe('Delete Recipient UseCase', () => {
-  let recipientsRepository: RecipientsRepository
-  let usersRepository: UsersRepository
-  let sut: DeleteRecipientUseCase
+let inMemoryRecipientsRepository: InMemoryRecipientsRepository
+let inMemoryUsersRepository: InMemoryUsersRepository
+let sut: DeleteRecipientUseCase
 
+describe('Delete Recipient Use Case', () => {
   beforeEach(() => {
-    recipientsRepository = {
-      create: vi.fn(),
-      findById: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-    }
-    usersRepository = {
-      findByCpf: vi.fn(),
-      findById: vi.fn(),
-      create: vi.fn(),
-      save: vi.fn(),
-      patch: vi.fn(),
-      findAllDeliverymen: vi.fn(),
-    }
-    sut = new DeleteRecipientUseCase(recipientsRepository, usersRepository)
+    inMemoryRecipientsRepository = new InMemoryRecipientsRepository()
+    inMemoryUsersRepository = new InMemoryUsersRepository()
+    sut = new DeleteRecipientUseCase(
+      inMemoryRecipientsRepository,
+      inMemoryUsersRepository,
+    )
   })
 
   it('should delete a recipient if admin is valid and active', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    const recipient = makeRecipient({}, new UniqueEntityID('recipient-1'))
+    const recipient = makeRecipient(
+      {
+        name: 'João Silva',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        phone: '(41) 91234-5678',
+        email: 'joao@example.com',
+      },
+      new UniqueEntityID('recipient-1'),
+    )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(recipientsRepository, 'findById').mockResolvedValue(recipient)
-    vi.spyOn(recipientsRepository, 'delete').mockResolvedValue()
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryRecipientsRepository.create(recipient)
 
-    await sut.execute({
+    const result = await sut.execute({
       adminId: 'admin-1',
       recipientId: 'recipient-1',
     })
 
-    expect(usersRepository.findById).toHaveBeenCalledWith('admin-1')
-    expect(recipientsRepository.findById).toHaveBeenCalledWith('recipient-1')
-    expect(recipientsRepository.delete).toHaveBeenCalledWith('recipient-1')
+    expect(result.isRight()).toBe(true)
+    expect(result.value).toEqual({})
+    expect(
+      await inMemoryRecipientsRepository.findById('recipient-1'),
+    ).toBeNull()
+    expect(inMemoryRecipientsRepository.items).toHaveLength(0)
   })
 
-  it('should throw an error if admin does not exist', async () => {
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(null)
+  it('should return an error if admin does not exist', async () => {
+    const recipient = makeRecipient(
+      {
+        name: 'João Silva',
+      },
+      new UniqueEntityID('recipient-1'),
+    )
 
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        recipientId: 'recipient-1',
+    await inMemoryRecipientsRepository.create(recipient)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      recipientId: 'recipient-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanDeleteRecipientsError,
+    )
+    expect(result).toEqual(left(new OnlyActiveAdminsCanDeleteRecipientsError()))
+    expect(await inMemoryRecipientsRepository.findById('recipient-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('recipient-1'),
+        name: 'João Silva',
       }),
-    ).rejects.toThrow('Only active admins can delete recipients')
+    )
   })
 
-  it('should throw an error if admin is not an admin', async () => {
+  it('should return an error if admin is not an admin', async () => {
     const deliveryman = makeUser(
-      { role: 'deliveryman' },
+      {
+        role: 'deliveryman',
+        status: 'active',
+      },
       new UniqueEntityID('deliveryman-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(deliveryman)
+    const recipient = makeRecipient(
+      {
+        name: 'João Silva',
+      },
+      new UniqueEntityID('recipient-1'),
+    )
 
-    await expect(
-      sut.execute({
-        adminId: 'deliveryman-1',
-        recipientId: 'recipient-1',
+    await inMemoryUsersRepository.create(deliveryman)
+    await inMemoryRecipientsRepository.create(recipient)
+
+    const result = await sut.execute({
+      adminId: 'deliveryman-1',
+      recipientId: 'recipient-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanDeleteRecipientsError,
+    )
+    expect(result).toEqual(left(new OnlyActiveAdminsCanDeleteRecipientsError()))
+    expect(await inMemoryRecipientsRepository.findById('recipient-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('recipient-1'),
+        name: 'João Silva',
       }),
-    ).rejects.toThrow('Only active admins can delete recipients')
+    )
   })
 
-  it('should throw an error if admin is inactive', async () => {
+  it('should return an error if admin is inactive', async () => {
     const admin = makeUser(
-      { status: 'inactive' },
+      {
+        role: 'admin',
+        status: 'inactive',
+      },
       new UniqueEntityID('admin-1'),
     )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
+    const recipient = makeRecipient(
+      {
+        name: 'João Silva',
+      },
+      new UniqueEntityID('recipient-1'),
+    )
 
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        recipientId: 'recipient-1',
+    await inMemoryUsersRepository.create(admin)
+    await inMemoryRecipientsRepository.create(recipient)
+
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      recipientId: 'recipient-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveAdminsCanDeleteRecipientsError,
+    )
+    expect(result).toEqual(left(new OnlyActiveAdminsCanDeleteRecipientsError()))
+    expect(await inMemoryRecipientsRepository.findById('recipient-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('recipient-1'),
+        name: 'João Silva',
       }),
-    ).rejects.toThrow('Only active admins can delete recipients')
+    )
   })
 
-  it('should throw an error if recipient does not exist', async () => {
-    const admin = makeUser({}, new UniqueEntityID('admin-1'))
+  it('should return an error if recipient does not exist', async () => {
+    const admin = makeUser(
+      {
+        role: 'admin',
+        status: 'active',
+      },
+      new UniqueEntityID('admin-1'),
+    )
 
-    vi.spyOn(usersRepository, 'findById').mockResolvedValue(admin)
-    vi.spyOn(recipientsRepository, 'findById').mockResolvedValue(null)
+    await inMemoryUsersRepository.create(admin)
 
-    await expect(
-      sut.execute({
-        adminId: 'admin-1',
-        recipientId: 'recipient-1',
-      }),
-    ).rejects.toThrow('Recipient not found')
+    const result = await sut.execute({
+      adminId: 'admin-1',
+      recipientId: 'recipient-1',
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(RecipientNotFoundError)
+    expect(result).toEqual(left(new RecipientNotFoundError()))
+    expect(
+      await inMemoryRecipientsRepository.findById('recipient-1'),
+    ).toBeNull()
   })
 })
