@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { MarkOrderAsDeliveredUseCase } from './mark-order-as-delivered'
 import { InMemoryOrdersRepository } from 'test/repositories/in-memory-orders-repository'
 import { InMemoryUsersRepository } from 'test/repositories/in-memory-users-repository'
+import { InMemoryOrderAttachmentsRepository } from 'test/repositories/in-memory-order-attachmentsrepository'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { makeUser } from 'test/factories/make-users'
 import { makeOrder } from 'test/factories/make-order'
@@ -11,17 +12,22 @@ import { OrderNotFoundError } from './errors/order-not-found-error'
 import { OnlyAssignedDeliverymanCanMarkOrderAsDeliveredError } from './errors/only-assigned-deliveryman-can-mark-order-as-delivered-error'
 import { OrderMustBePickedUpToBeMarkedAsDeliveredError } from './errors/order-must-be-picked-up-to-be-marked-as-delivered-error'
 import { DeliveryPhotoIsRequiredError } from './errors/delivery-photo-is-required-error'
+import { OrderAttachmentList } from '../../enterprise/entities/order-attachment-list'
 
 let inMemoryOrdersRepository: InMemoryOrdersRepository
 let inMemoryUsersRepository: InMemoryUsersRepository
+let inMemoryOrderAttachmentsRepository: InMemoryOrderAttachmentsRepository
 let sut: MarkOrderAsDeliveredUseCase
 
 describe('Mark Order As Delivered', () => {
   beforeEach(() => {
     inMemoryOrdersRepository = new InMemoryOrdersRepository()
     inMemoryUsersRepository = new InMemoryUsersRepository()
+    inMemoryOrderAttachmentsRepository =
+      new InMemoryOrderAttachmentsRepository()
     sut = new MarkOrderAsDeliveredUseCase(
       inMemoryOrdersRepository,
+      inMemoryOrderAttachmentsRepository,
       inMemoryUsersRepository,
     )
   })
@@ -46,7 +52,7 @@ describe('Mark Order As Delivered', () => {
         city: 'Curitiba',
         state: 'PR',
         zipCode: '80010-000',
-        deliveryPhoto: [],
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -66,35 +72,45 @@ describe('Mark Order As Delivered', () => {
         id: new UniqueEntityID('order-1'),
         deliverymanId: new UniqueEntityID('deliveryman-1'),
         status: 'delivered',
-        deliveryPhoto: [
-          expect.objectContaining({
-            orderId: new UniqueEntityID('order-1'),
-            attachmentId: new UniqueEntityID('photo-1'),
-          }),
-          expect.objectContaining({
-            orderId: new UniqueEntityID('order-1'),
-            attachmentId: new UniqueEntityID('photo-2'),
-          }),
-        ],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.value as any).order.deliveryPhoto.currentItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          orderId: expect.objectContaining({ value: 'order-1' }),
+          attachmentId: expect.objectContaining({ value: 'photo-1' }),
+        }),
+        expect.objectContaining({
+          orderId: expect.objectContaining({ value: 'order-1' }),
+          attachmentId: expect.objectContaining({ value: 'photo-2' }),
+        }),
+      ]),
+    )
     expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'delivered',
-        deliveryPhoto: [
-          expect.objectContaining({
-            orderId: new UniqueEntityID('order-1'),
-            attachmentId: new UniqueEntityID('photo-1'),
-          }),
-          expect.objectContaining({
-            orderId: new UniqueEntityID('order-1'),
-            attachmentId: new UniqueEntityID('photo-2'),
-          }),
-        ],
         street: 'Rua das Flores',
         number: '123',
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
+    )
+    expect(
+      (await inMemoryOrdersRepository.findById('order-1'))!.deliveryPhoto
+        .currentItems,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          orderId: expect.objectContaining({ value: 'order-1' }),
+          attachmentId: expect.objectContaining({ value: 'photo-1' }),
+        }),
+        expect.objectContaining({
+          orderId: expect.objectContaining({ value: 'order-1' }),
+          attachmentId: expect.objectContaining({ value: 'photo-2' }),
+        }),
+      ]),
     )
   })
 
@@ -104,6 +120,13 @@ describe('Mark Order As Delivered', () => {
         recipientId: new UniqueEntityID('recipient-1'),
         deliverymanId: new UniqueEntityID('deliveryman-1'),
         status: 'picked_up',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -127,9 +150,60 @@ describe('Mark Order As Delivered', () => {
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'picked_up',
-        deliveryPhoto: [],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     )
+    expect(
+      (await inMemoryOrdersRepository.findById('order-1'))!.deliveryPhoto
+        .currentItems,
+    ).toHaveLength(0)
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
+  })
+
+  it('should return error if deliveryman does not exist', async () => {
+    const order = makeOrder(
+      {
+        recipientId: new UniqueEntityID('recipient-1'),
+        deliverymanId: new UniqueEntityID('deliveryman-1'),
+        status: 'picked_up',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
+      },
+      new UniqueEntityID('order-1'),
+    )
+
+    await inMemoryOrdersRepository.create(order)
+
+    const result = await sut.execute({
+      deliverymanId: 'deliveryman-1',
+      orderId: 'order-1',
+      deliveryPhotoIds: ['photo-1'],
+    })
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(
+      OnlyActiveDeliverymenCanMarkOrdersAsDeliveredError,
+    )
+    expect(result).toEqual(
+      left(new OnlyActiveDeliverymenCanMarkOrdersAsDeliveredError()),
+    )
+    expect(await inMemoryOrdersRepository.findById('order-1')).toEqual(
+      expect.objectContaining({
+        id: new UniqueEntityID('order-1'),
+        status: 'picked_up',
+        deliveryPhoto: expect.any(OrderAttachmentList),
+      }),
+    )
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 
   it('should return error if user is not a deliveryman', async () => {
@@ -146,6 +220,13 @@ describe('Mark Order As Delivered', () => {
         recipientId: new UniqueEntityID('recipient-1'),
         deliverymanId: new UniqueEntityID('deliveryman-1'),
         status: 'picked_up',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -170,9 +251,12 @@ describe('Mark Order As Delivered', () => {
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'picked_up',
-        deliveryPhoto: [],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     )
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 
   it('should return error if deliveryman is inactive', async () => {
@@ -189,6 +273,13 @@ describe('Mark Order As Delivered', () => {
         recipientId: new UniqueEntityID('recipient-1'),
         deliverymanId: new UniqueEntityID('deliveryman-1'),
         status: 'picked_up',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -213,9 +304,12 @@ describe('Mark Order As Delivered', () => {
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'picked_up',
-        deliveryPhoto: [],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     )
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 
   it('should return error if order does not exist', async () => {
@@ -239,6 +333,9 @@ describe('Mark Order As Delivered', () => {
     expect(result.value).toBeInstanceOf(OrderNotFoundError)
     expect(result).toEqual(left(new OrderNotFoundError()))
     expect(await inMemoryOrdersRepository.findById('order-1')).toBeNull()
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 
   it('should return error if deliveryman is not assigned to the order', async () => {
@@ -255,6 +352,13 @@ describe('Mark Order As Delivered', () => {
         recipientId: new UniqueEntityID('recipient-1'),
         deliverymanId: new UniqueEntityID('deliveryman-2'),
         status: 'picked_up',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -279,9 +383,12 @@ describe('Mark Order As Delivered', () => {
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'picked_up',
-        deliveryPhoto: [],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     )
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 
   it('should return error if order is not picked up', async () => {
@@ -298,6 +405,13 @@ describe('Mark Order As Delivered', () => {
         recipientId: new UniqueEntityID('recipient-1'),
         deliverymanId: new UniqueEntityID('deliveryman-1'),
         status: 'pending',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -322,9 +436,12 @@ describe('Mark Order As Delivered', () => {
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'pending',
-        deliveryPhoto: [],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     )
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 
   it('should return error if delivery photo IDs are not provided', async () => {
@@ -341,6 +458,13 @@ describe('Mark Order As Delivered', () => {
         recipientId: new UniqueEntityID('recipient-1'),
         deliverymanId: new UniqueEntityID('deliveryman-1'),
         status: 'picked_up',
+        street: 'Rua das Flores',
+        number: '123',
+        neighborhood: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        zipCode: '80010-000',
+        deliveryPhoto: new OrderAttachmentList(),
       },
       new UniqueEntityID('order-1'),
     )
@@ -361,8 +485,11 @@ describe('Mark Order As Delivered', () => {
       expect.objectContaining({
         id: new UniqueEntityID('order-1'),
         status: 'picked_up',
-        deliveryPhoto: [],
+        deliveryPhoto: expect.any(OrderAttachmentList),
       }),
     )
+    expect(
+      await inMemoryOrderAttachmentsRepository.findManyByOrderId('order-1'),
+    ).toEqual([])
   })
 })

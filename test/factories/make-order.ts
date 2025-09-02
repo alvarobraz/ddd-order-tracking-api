@@ -4,6 +4,7 @@ import {
   Order,
   OrderProps,
 } from '@/domain/order-control/enterprise/entities/order'
+import { OrderAttachmentList } from '@/domain/order-control/enterprise/entities/order-attachment-list'
 
 export function makeOrder(
   override: Partial<OrderProps> = {},
@@ -19,7 +20,7 @@ export function makeOrder(
       city: faker.location.city(),
       state: faker.location.state({ abbreviated: true }),
       zipCode: faker.location.zipCode('#####-###'),
-      deliveryPhoto: [],
+      deliveryPhoto: new OrderAttachmentList() || [],
       createdAt: new Date(),
       ...override,
     },

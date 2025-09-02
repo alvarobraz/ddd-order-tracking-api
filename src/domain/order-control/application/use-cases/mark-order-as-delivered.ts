@@ -8,7 +8,9 @@ import { OrderMustBePickedUpToBeMarkedAsDeliveredError } from './errors/order-mu
 import { DeliveryPhotoIsRequiredError } from './errors/delivery-photo-is-required-error'
 import { Order } from '../../enterprise/entities/order'
 import { OrderAttachment } from '../../enterprise/entities/order-attachment'
+import { OrderAttachmentList } from '@/domain/order-control/enterprise/entities/order-attachment-list'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { OrderAttachmentsRepository } from '../repositories/orders-attachments-repository'
 
 interface MarkOrderAsDeliveredUseCaseRequest {
   deliverymanId: string
@@ -28,6 +30,7 @@ type MarkOrderAsDeliveredUseCaseResponse = Either<
 export class MarkOrderAsDeliveredUseCase {
   constructor(
     private ordersRepository: OrdersRepository,
+    private orderAttachmentsRepository: OrderAttachmentsRepository,
     private usersRepository: UsersRepository,
   ) {}
 
@@ -62,6 +65,11 @@ export class MarkOrderAsDeliveredUseCase {
       return left(new DeliveryPhotoIsRequiredError())
     }
 
+    const currentOrderAttachments =
+      await this.orderAttachmentsRepository.findManyByOrderId(orderId)
+
+    const orderAttachmentList = new OrderAttachmentList(currentOrderAttachments)
+
     const orderAttachments = deliveryPhotoIds.map((deliveryPhotoId) => {
       return OrderAttachment.create({
         attachmentId: new UniqueEntityID(deliveryPhotoId),
@@ -69,8 +77,10 @@ export class MarkOrderAsDeliveredUseCase {
       })
     })
 
+    orderAttachmentList.update(orderAttachments)
+
     order.status = 'delivered'
-    order.deliveryPhoto = orderAttachments
+    order.deliveryPhoto = orderAttachmentList
 
     await this.ordersRepository.save(order)
 
