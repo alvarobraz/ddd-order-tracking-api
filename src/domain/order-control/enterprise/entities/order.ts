@@ -1,6 +1,7 @@
 import { AggregateRoot } from '@/core/entities/aggregate-root'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { Optional } from '@/core/types/optional'
+import { OrderAttachment } from './order-attachment'
 
 export interface OrderProps {
   recipientId?: UniqueEntityID
@@ -12,7 +13,7 @@ export interface OrderProps {
   city: string
   state: string
   zipCode: string
-  deliveryPhoto?: string
+  deliveryPhoto: OrderAttachment[]
   createdAt: Date
   updatedAt?: Date
 }
@@ -115,7 +116,7 @@ export class Order extends AggregateRoot<OrderProps> {
     this.touch()
   }
 
-  set deliveryPhoto(deliveryPhoto: string | undefined) {
+  set deliveryPhoto(deliveryPhoto: OrderAttachment[]) {
     this.props.deliveryPhoto = deliveryPhoto
     this.touch()
   }
@@ -134,6 +135,7 @@ export class Order extends AggregateRoot<OrderProps> {
     const order = new Order(
       {
         ...props,
+        deliveryPhoto: props.deliveryPhoto ?? [],
         createdAt: props.createdAt ?? new Date(),
       },
       id,

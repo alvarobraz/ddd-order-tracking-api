@@ -19,6 +19,7 @@ export function makeOrder(
       city: faker.location.city(),
       state: faker.location.state({ abbreviated: true }),
       zipCode: faker.location.zipCode('#####-###'),
+      deliveryPhoto: [],
       createdAt: new Date(),
       ...override,
     },
