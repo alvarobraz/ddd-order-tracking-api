@@ -1,11 +1,14 @@
 import { Order } from '@/domain/order-control/enterprise/entities/order'
 import { OrdersRepository } from '@/domain/order-control/application/repositories/orders-repository'
+import { DomainEvents } from '@/core/events/domain-events'
 
 export class InMemoryOrdersRepository implements OrdersRepository {
   public items: Order[] = []
 
   async create(order: Order): Promise<void> {
     this.items.push(order)
+
+    DomainEvents.dispatchEventsForAggregate(order.id)
   }
 
   async findById(id: string): Promise<Order | null> {
@@ -20,6 +23,7 @@ export class InMemoryOrdersRepository implements OrdersRepository {
     if (index >= 0) {
       this.items[index] = order
     }
+    DomainEvents.dispatchEventsForAggregate(order.id)
     return order
   }
 

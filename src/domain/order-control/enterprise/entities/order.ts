@@ -2,6 +2,9 @@ import { AggregateRoot } from '@/core/entities/aggregate-root'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { Optional } from '@/core/types/optional'
 import { OrderAttachmentList } from './order-attachment-list'
+import { OrderCreatedEvent } from '../events/order-created-event'
+import { OrderPickedUpEvent } from '../events/order-picked-up-event'
+import { OrderDeliveredEvent } from '../events/order-delivered-event'
 
 export interface OrderProps {
   recipientId?: UniqueEntityID
@@ -82,6 +85,12 @@ export class Order extends AggregateRoot<OrderProps> {
   }
 
   set status(status: 'pending' | 'picked_up' | 'delivered' | 'returned') {
+    if (status === 'picked_up' && this.props.status !== 'picked_up') {
+      this.addDomainEvent(new OrderPickedUpEvent(this))
+    }
+    if (status === 'delivered' && this.props.status !== 'delivered') {
+      this.addDomainEvent(new OrderDeliveredEvent(this))
+    }
     this.props.status = status
     this.touch()
   }
@@ -140,6 +149,12 @@ export class Order extends AggregateRoot<OrderProps> {
       },
       id,
     )
+
+    const isNewAnswer = !id
+
+    if (isNewAnswer) {
+      order.addDomainEvent(new OrderCreatedEvent(order))
+    }
 
     return order
   }
